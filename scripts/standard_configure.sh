@@ -33,8 +33,10 @@ export PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:-"/usr/bin/python3"}
 export KRATOS_APPLICATIONS=
 add_app ${KRATOS_APP_DIR}/LinearSolversApplication
 add_app ${KRATOS_APP_DIR}/StructuralMechanicsApplication
-add_app ${KRATOS_APP_DIR}/FluidDynamicsApplication
-add_app ${KRATOS_APP_DIR}/IgaApplication
+add_app ${KRATOS_APP_DIR}/ContactStructuralMechanicsApplication
+add_app ${KRATOS_APP_DIR}/DelaunayMeshingApplication
+add_app ${KRATOS_APP_DIR}/DEMApplication
+add_app ${KRATOS_APP_DIR}/ThermalDEMApplication
 
 # Clean
 clear
@@ -47,7 +49,9 @@ cmake -H"${KRATOS_SOURCE}" -B"${KRATOS_BUILD}/${KRATOS_BUILD_TYPE}" \
 -DUSE_MPI=OFF                                                       \
 -DCMAKE_POLICY_VERSION_MINIMUM=3.5                                  \
 -DUSE_EIGEN_MKL=OFF                                                 \
--DKRATOS_GENERATE_PYTHON_STUBS=ON
+-DKRATOS_GENERATE_PYTHON_STUBS=ON                                   \
+-DUSE_TRIANGLE_NONFREE_TPL=ON                                       \ 
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 # Build
 cmake --build "${KRATOS_BUILD}/${KRATOS_BUILD_TYPE}" --target install -- -j$(nproc)

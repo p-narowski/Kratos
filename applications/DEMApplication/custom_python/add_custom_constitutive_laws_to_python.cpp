@@ -67,6 +67,7 @@
 #include "custom_constitutive/DEM_global_damping_nonviscous_constantforcedir.h"
 #include "custom_constitutive/DEM_global_damping_nonviscous_variableforcedir.h"
 #include "custom_constitutive/DEM_global_damping_viscous.h"
+#include "custom_constitutive/dem_dpd_sph_like_cl.h"
 
 namespace Kratos {
 namespace Python {
@@ -396,6 +397,10 @@ void AddCustomConstitutiveLawsToPython(pybind11::module& m) {
     py::class_<DEMGlobalDampingViscous, DEMGlobalDampingViscous::Pointer, DEMGlobalDampingModel>(m, "DEMGlobalDampingViscous")
         .def(py::init<>())
         ;
+
+    //DPD/SPH-like constitutive law:
+    py::class_<DEM_DPD_SPH_LIKE, DEM_DPD_SPH_LIKE::Pointer, DEMDiscontinuumConstitutiveLaw>(m, "DEM_DPD_SPH_LIKE")
+    .def(py::init<>());
 }
 
 } // namespace Python.

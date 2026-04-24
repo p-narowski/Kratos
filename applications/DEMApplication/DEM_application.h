@@ -35,6 +35,7 @@
 #include "custom_conditions/RigidFace.h"
 #include "custom_conditions/analytic_RigidFace.h"
 #include "custom_conditions/RigidEdge.h"
+#include "custom_constitutive/dem_dpd_sph_like_cl.h"
 
 namespace Kratos
 {

@@ -123,6 +123,7 @@ set(KRATOS_DEM_APPLICATION_CORE
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/DEM_global_damping_nonviscous_constantforcedir.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/DEM_global_damping_nonviscous_variableforcedir.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/DEM_global_damping_viscous.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/dem_dpd_sph_like_cl.cpp
 )
 
 set(KRATOS_DEM_APPLICATION_PYTHON_INTERFACE

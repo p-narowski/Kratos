@@ -6,7 +6,7 @@
 #define  KRATOS_ADD_CUSTOM_DEM_CONSTITUTIVE_LAWS_TO_PYTHON_H_INCLUDED
 
 // System includes
-
+#include "custom_constitutive/dem_dpd_sph_like_cl.h"
 // Project includes
 #include "includes/define.h"  
 

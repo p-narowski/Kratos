@@ -27,6 +27,7 @@
 #include "custom_constitutive/dem_kdem_fabric_2d_cl.h"
 #include "custom_constitutive/DEM_D_Linear_Simple_Coulomb_CL.h"
 #include "custom_constitutive/DEM_D_Linear_viscous_Coulomb_CL.h"
+#include "custom_constitutive/dem_dpd_sph_like_cl.h"
 #include "custom_constitutive/DEM_D_Linear_viscous_Coulomb_2D_CL.h"
 #include "custom_constitutive/DEM_D_Hertz_viscous_Coulomb_CL.h"
 #include "custom_constitutive/DEM_D_Hertz_viscous_Coulomb_2D_CL.h"
@@ -505,6 +506,12 @@ KRATOS_CREATE_VARIABLE(bool, IMPOSED_Z_STRAIN_OPTION)
 
 // RVE analysis
 KRATOS_CREATE_VARIABLE(bool, RVE_ANALYSIS)
+
+//DPD
+KRATOS_CREATE_VARIABLE(double, DPD_SMOOTHING_LENGTH)
+KRATOS_CREATE_VARIABLE(double, DPD_CUTOFF_RADIUS)
+KRATOS_CREATE_VARIABLE(double, DPD_CONSERVATIVE_COEFF)
+KRATOS_CREATE_VARIABLE(double, DPD_DISSIPATIVE_COEFF)
 
 //FLAGS
 KRATOS_CREATE_LOCAL_FLAG(DEMFlags, HAS_ROTATION, 0);
@@ -1012,6 +1019,12 @@ void KratosDEMApplication::Register() {
 
     // RVE analysis
     KRATOS_REGISTER_VARIABLE(RVE_ANALYSIS)
+
+    //DPD
+    KRATOS_REGISTER_VARIABLE(DPD_SMOOTHING_LENGTH)
+    KRATOS_REGISTER_VARIABLE(DPD_CUTOFF_RADIUS)
+    KRATOS_REGISTER_VARIABLE(DPD_CONSERVATIVE_COEFF)
+    KRATOS_REGISTER_VARIABLE(DPD_DISSIPATIVE_COEFF)
     
     // ELEMENTS
     KRATOS_REGISTER_ELEMENT("CylinderParticle2D", mCylinderParticle2D)
@@ -1049,6 +1062,7 @@ void KratosDEMApplication::Register() {
     Serializer::Register("PropertiesProxy", PropertiesProxy());
     Serializer::Register("DEM_D_Linear_Simple_Coulomb", DEM_D_Linear_Simple_Coulomb());
     Serializer::Register("DEM_D_Linear_viscous_Coulomb", DEM_D_Linear_viscous_Coulomb());
+    Serializer::Register("DEM_DPD_SPH_LIKE", DEM_DPD_SPH_LIKE());
     Serializer::Register("DEM_D_Linear_viscous_Coulomb2D", DEM_D_Linear_viscous_Coulomb2D());
     Serializer::Register("DEM_D_Hertz_viscous_Coulomb", DEM_D_Hertz_viscous_Coulomb());
     Serializer::Register("DEM_D_Hertz_viscous_Coulomb2D", DEM_D_Hertz_viscous_Coulomb2D());
