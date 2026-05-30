@@ -28,7 +28,29 @@ namespace Kratos
 
         std::string Info() const override { return "DPDParticle"; }
 
+        void ComputeBallToBallContactForceAndMoment(
+            SphericParticle::ParticleDataBuffer& data_buffer,
+            const ProcessInfo& r_process_info,
+            array_1d<double, 3>& rElasticForce,
+            array_1d<double, 3>& rContactForce) override;
+
     protected:
+        void EvaluateBallToBallForcesForPositiveIndentiations(
+            SphericParticle::ParticleDataBuffer& data_buffer,
+            const ProcessInfo& r_process_info,
+            double LocalElasticContactForce[3],
+            double DeltDisp[3],
+            double LocalDeltDisp[3],
+            double RelVel[3],
+            double indentation,
+            double ViscoDampingLocalContactForce[3],
+            double& cohesive_force,
+            SphericParticle* element2,
+            bool& sliding,
+            double LocalCoordSystem[3][3],
+            double OldLocalCoordSystem[3][3],
+            array_1d<double, 3>& neighbour_elastic_contact_force) override;
+
         friend class Serializer;
         void save(Serializer &rSerializer) const override
         {
