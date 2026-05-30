@@ -147,13 +147,7 @@ namespace Kratos
         Condition *const wall,
         bool &sliding)
     {
-        static bool printed = false;
-        if (!printed)
-        {
-            std::cout << "[DPD-FEM] Called! indentation=" << indentation
-                      << " R=" << element->GetInteractionRadius() << std::endl;
-            printed = true;
-        }
+        std::cout << "[DPD-FEM-DBG] ENTERED CalculateForcesWith FEM" << std::endl;
 
         KRATOS_TRY
 
@@ -248,6 +242,7 @@ namespace Kratos
         bool &sliding,
         double LocalCoordSystem[3][3])
     {
+        std::cout << "[DPD-PP-DBG] ENTERED CalculateForces" << std::endl;
         KRATOS_TRY
 
         LocalElasticContactForce[0] = 0.0;
