@@ -23,7 +23,7 @@ namespace Kratos
 
     std::string DEM_DPD_SPH_LIKE::GetTypeOfLaw()
     {
-        return "DPD_SPH_LIKE";
+        return "DEM_DPD_SPH_LIKE";
     }
     bool DEM_DPD_SPH_LIKE::IsRangeForce() const
     {
@@ -178,8 +178,10 @@ namespace Kratos
         const double gamma_t = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_TANGENTIAL];
 
         // Mirror-ghost wall distance based on kernel width (no radius)
-        const double d = std::max(-indentation, 1.0e-12);
-        const double r = 2.0 * d;
+        const double R_interaction = element->GetInteractionRadius();
+        const double dist_to_wall = R_interaction - indentation; // ≈ DistPToB
+        const double d = std::max(dist_to_wall, 1.0e-12);
+        const double r = 2.0 * d; // mirror-ghost
 
         if (r < 1.0e-15 || r >= rc)
         {
