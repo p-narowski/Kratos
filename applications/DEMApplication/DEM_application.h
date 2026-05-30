@@ -30,6 +30,7 @@
 #include "custom_elements/contact_info_spheric_particle.h"
 #include "custom_elements/bonding_spheric_continuum_particle.h"
 #include "custom_elements/custom_clusters/singlespherecluster3D.h"
+#include "custom_elements/dpd_particle.h"
 #include "custom_conditions/mapping_condition.h"
 #include "custom_conditions/SolidFace.h"
 #include "custom_conditions/RigidFace.h"
@@ -88,6 +89,7 @@ private:
     const CylinderParticle mCylinderParticle2D;
     const CylinderContinuumParticle mCylinderContinuumParticle2D;
     const SphericParticle mSphericParticle3D;
+    const DPDParticle mDPDParticle;
     const NanoParticle mNanoParticle3D;
     const AnalyticSphericParticle mAnalyticSphericParticle3D;
     const SphericContinuumParticle mSphericContinuumParticle3D;
@@ -111,6 +113,7 @@ private:
     const Cluster3D  mCluster3D;
     const SingleSphereCluster3D  mSingleSphereCluster3D;
     const MAPcond    mMapCon3D3N;
+    const DEM_DPD_SPH_LIKE mDEM_DPD_SPH_LIKE;
 
     // static const ApplicationCondition  msApplicationCondition;
     KratosDEMApplication& operator=(KratosDEMApplication const& rOther);

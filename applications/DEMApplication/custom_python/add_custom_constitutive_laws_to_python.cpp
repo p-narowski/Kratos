@@ -399,8 +399,9 @@ void AddCustomConstitutiveLawsToPython(pybind11::module& m) {
         ;
 
     //DPD/SPH-like constitutive law:
-    py::class_<DEM_DPD_SPH_LIKE, DEM_DPD_SPH_LIKE::Pointer, DEMDiscontinuumConstitutiveLaw>(m, "DEM_DPD_SPH_LIKE")
-    .def(py::init<>());
+   py::class_<DEM_DPD_SPH_LIKE, DEM_DPD_SPH_LIKE::Pointer, DEM_D_Linear_viscous_Coulomb>(m, "DEM_DPD_SPH_LIKE")
+    .def(py::init<>())
+    ;
 }
 
 } // namespace Python.
