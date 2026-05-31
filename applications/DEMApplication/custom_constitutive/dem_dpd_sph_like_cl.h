@@ -25,7 +25,10 @@ namespace Kratos
 
         std::string GetTypeOfLaw() override;
 
-        bool IsRangeForce() const override;
+        bool IsRangeForce() const override
+        {
+            return true;
+        }
 
         void Check(Properties::Pointer pProp) const override;
 
