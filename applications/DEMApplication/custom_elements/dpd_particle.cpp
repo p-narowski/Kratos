@@ -3,39 +3,37 @@
 
 namespace Kratos {
 
+// ---------------------------------------------------------------------------
+// ComputeBallToBallContactForceAndMoment
+// Override to skip the base-class indentation>0 guard so that DPD range
+// forces act on non-overlapping pairs too.
+// ---------------------------------------------------------------------------
 void DPDParticle::ComputeBallToBallContactForceAndMoment(
     ParticleDataBuffer& data_buffer,
     const ProcessInfo& r_process_info,
     array_1d<double, 3>& rElasticForce,
     array_1d<double, 3>& rContactForce)
 {
-    // DPD range force: skip the indentation > 0 guard in the base class.
-    // CalculateRelativePositionsOrSkipContact sets data_buffer.mIndentation
-    // and mDistance. We call the base only when the pair is within rc.
-    // The base SphericParticle::ComputeBallToBallContactForceAndMoment
-    // exits early for indentation < 0, so we bypass it entirely and call
-    // EvaluateBallToBallForcesForPositiveIndentiations directly.
+    const int size = (int)mNeighbourElements.size();
 
-    const int size = mNeighbourElements.size();
     for (int i = 0; i < size; i++) {
         if (mNeighbourElements[i] == nullptr) continue;
         if (!data_buffer.SetNextNeighbourOrExit(i)) break;
         if (!CalculateRelativePositionsOrSkipContact(data_buffer)) continue;
 
-        // Allow non-overlapping pairs through (range force)
-        // data_buffer.mIndentation may be <= 0 — that is fine for DPD
+        // data_buffer.mIndentation may be <= 0 for range-force pairs — that is OK
 
         double LocalElasticContactForce[3]      = {0.0, 0.0, 0.0};
-        double LocalDeltDisp[3]                 = {0.0, 0.0, 0.0};
-        double LocalRelVel[3]                   = {0.0, 0.0, 0.0};
         double DeltDisp[3]                      = {0.0, 0.0, 0.0};
+        double LocalDeltDisp[3]                 = {0.0, 0.0, 0.0};
+        double RelVel[3]                        = {0.0, 0.0, 0.0};
         double ViscoDampingLocalContactForce[3] = {0.0, 0.0, 0.0};
         double cohesive_force                   = 0.0;
         bool   sliding                          = false;
 
         array_1d<double, 3> neighbour_elastic_contact_force = ZeroVector(3);
 
-        EvaluateDeltaDisplacement(data_buffer, DeltDisp, LocalRelVel,
+        EvaluateDeltaDisplacement(data_buffer, DeltDisp, RelVel,
                                   data_buffer.mLocalCoordSystem,
                                   data_buffer.mOldLocalCoordSystem,
                                   GetGeometry()[0].FastGetSolutionStepValue(VELOCITY),
@@ -43,15 +41,21 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
 
         EvaluateBallToBallForcesForPositiveIndentiations(
             data_buffer, r_process_info,
-            LocalElasticContactForce, DeltDisp, LocalDeltDisp, LocalRelVel,
+            LocalElasticContactForce,
+            DeltDisp, LocalDeltDisp, RelVel,
             data_buffer.mIndentation,
             ViscoDampingLocalContactForce, cohesive_force,
             data_buffer.mpOtherParticle, sliding,
-            data_buffer.mLocalCoordSystem, data_buffer.mOldLocalCoordSystem,
+            data_buffer.mLocalCoordSystem,
+            data_buffer.mOldLocalCoordSystem,
             neighbour_elastic_contact_force);
     }
 }
 
+// ---------------------------------------------------------------------------
+// EvaluateBallToBallForcesForPositiveIndentiations
+// Calls the constitutive law directly — bypasses base indentation>0 guard.
+// ---------------------------------------------------------------------------
 void DPDParticle::EvaluateBallToBallForcesForPositiveIndentiations(
     SphericParticle::ParticleDataBuffer& data_buffer,
     const ProcessInfo& r_process_info,
@@ -68,8 +72,29 @@ void DPDParticle::EvaluateBallToBallForcesForPositiveIndentiations(
     double OldLocalCoordSystem[3][3],
     array_1d<double, 3>& neighbour_elastic_contact_force)
 {
-    // Call the DPD constitutive law directly, bypassing the base class
-    // indentation > 0 guard that would silently skip all range-force pairs.
+    // Retrieve the per-neighbour index so we can read mNeighbourElasticContactForces[i]
+    // The neighbour pointer lets us locate the index.
+    int i_neighbour = -1;
+    for (int k = 0; k < (int)mNeighbourElements.size(); k++) {
+        if (mNeighbourElements[k] == element2) { i_neighbour = k; break; }
+    }
+
+    // Old local elastic contact force for this neighbour (history variable)
+    double OldLocalElasticContactForce[3] = {0.0, 0.0, 0.0};
+    if (i_neighbour >= 0 && i_neighbour < (int)mNeighbourElasticContactForces.size()) {
+        // Rotate stored global force to current local frame
+        const array_1d<double,3>& stored = mNeighbourElasticContactForces[i_neighbour];
+        for (int k = 0; k < 3; k++) {
+            OldLocalElasticContactForce[k] = LocalCoordSystem[k][0]*stored[0]
+                                           + LocalCoordSystem[k][1]*stored[1]
+                                           + LocalCoordSystem[k][2]*stored[2];
+        }
+    }
+
+    // Previous indentation: not stored in ParticleDataBuffer; pass 0.0.
+    // The DPD-SPH CL does not use it (Hertz spring = 0 for kn=0).
+    const double previous_indentation = 0.0;
+
     DEMDiscontinuumConstitutiveLaw& cl =
         *GetProperties()[DEM_DISCONTINUUM_CONSTITUTIVE_LAW_POINTER];
 
@@ -77,12 +102,12 @@ void DPDParticle::EvaluateBallToBallForcesForPositiveIndentiations(
 
     cl.CalculateForces(
         r_process_info,
-        data_buffer.mOldLocalElasticContactForce,
+        OldLocalElasticContactForce,
         LocalElasticContactForce,
         LocalDeltDisp,
         RelVel,
         indentation,
-        data_buffer.mPreviousIndentation,
+        previous_indentation,
         ViscoDampingLocalContactForce,
         cohesive_force,
         this,
@@ -90,27 +115,27 @@ void DPDParticle::EvaluateBallToBallForcesForPositiveIndentiations(
         sliding,
         LocalCoordSystem);
 
-    // Rotate local forces to global and accumulate
-    double TotalContactForce[3];
-    for (int k = 0; k < 3; k++) {
-        TotalContactForce[k] = LocalElasticContactForce[k] + ViscoDampingLocalContactForce[k];
-    }
-
-    // Local-to-global rotation: F_global = R^T * F_local
-    // LocalCoordSystem rows are the local axes expressed in global coords
-    array_1d<double, 3>& elastic_force = GetGeometry()[0].FastGetSolutionStepValue(ELASTIC_FORCES);
-    array_1d<double, 3>& total_force   = GetGeometry()[0].FastGetSolutionStepValue(CONTACT_FORCES);
+    // Rotate local forces to global and accumulate into node variables
+    array_1d<double, 3>& elastic_force_node =
+        GetGeometry()[0].FastGetSolutionStepValue(ELASTIC_FORCES);
+    array_1d<double, 3>& contact_force_node =
+        GetGeometry()[0].FastGetSolutionStepValue(CONTACT_FORCES);
 
     for (int j = 0; j < 3; j++) {
         double elastic_global_j = 0.0;
-        double total_global_j   = 0.0;
+        double damping_global_j = 0.0;
         for (int k = 0; k < 3; k++) {
             elastic_global_j += LocalCoordSystem[k][j] * LocalElasticContactForce[k];
-            total_global_j   += LocalCoordSystem[k][j] * TotalContactForce[k];
+            damping_global_j += LocalCoordSystem[k][j] * ViscoDampingLocalContactForce[k];
         }
-        elastic_force[j] += elastic_global_j;
-        total_force[j]   += total_global_j;
+        elastic_force_node[j]            += elastic_global_j;
+        contact_force_node[j]            += elastic_global_j + damping_global_j;
         neighbour_elastic_contact_force[j] = -elastic_global_j;
+    }
+
+    // Update stored history for this neighbour
+    if (i_neighbour >= 0 && i_neighbour < (int)mNeighbourElasticContactForces.size()) {
+        mNeighbourElasticContactForces[i_neighbour] = neighbour_elastic_contact_force * (-1.0);
     }
 }
 
