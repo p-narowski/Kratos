@@ -23,10 +23,6 @@ namespace Kratos
         DEM_DPD_SPH_LIKE() = default;
         ~DEM_DPD_SPH_LIKE() override = default;
 
-        std::string GetContactName() override {
-            return std::string("DEMDPDSPHLikeCL");
-        }
-
         std::string GetTypeOfLaw() override;
 
         bool IsRangeForce() const override;
