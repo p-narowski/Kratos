@@ -18,14 +18,6 @@ namespace Kratos
             return Kratos::make_intrusive<DPDParticle>(NewId, GetGeometry().Create(ThisNodes), pProperties);
         }
 
-        // Returns rc for wall/neighbour search — makes law radius-agnostic
-        double GetInteractionRadius(const int radius_index = 0) override
-        {
-            if (GetProperties().Has(DPD_CUTOFF_RADIUS))
-                return GetProperties()[DPD_CUTOFF_RADIUS];
-            return SphericParticle::GetInteractionRadius(radius_index);
-        }
-
         // Override the full ball-to-ball loop so DPD range forces fire for
         // ALL neighbours within r_cut, not only overlapping pairs.
         void ComputeBallToBallContactForceAndMoment(

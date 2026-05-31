@@ -17,8 +17,10 @@ namespace Kratos {
 //      (e.g. wall-particle pairs using the Hertz law on Property 2) are
 //      handled by the existing machinery without duplication.
 //   2. Loop all search-radius neighbours ourselves and call the DPD CL
-//      directly for every pair with dist < r_cut, bypassing the
-//      indentation > 0 guard.
+//      directly for every pair with dist < rc, where rc is read from the
+//      contact sub-properties (material_relations in MaterialsDEM.json).
+//      This makes the DPD interaction range purely a material-law parameter,
+//      fully independent of the geometric particle radii.
 // ---------------------------------------------------------------------------
 void DPDParticle::ComputeBallToBallContactForceAndMoment(
     ParticleDataBuffer& data_buffer,
@@ -30,14 +32,20 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
     SphericParticle::ComputeBallToBallContactForceAndMoment(
         data_buffer, r_process_info, rElasticForce, rContactForce);
 
-    // --- Step 2: DPD range forces for all neighbours within r_cut ---
+    // --- Step 2: DPD range forces for all neighbours within rc ---
     const array_1d<double, 3>& my_pos = GetGeometry()[0].Coordinates();
     const array_1d<double, 3>& my_vel = GetGeometry()[0].FastGetSolutionStepValue(VELOCITY);
-    const double my_rc = GetInteractionRadius();
 
     for (unsigned int i = 0; i < mNeighbourElements.size(); ++i) {
         SphericParticle* neighbour = mNeighbourElements[i];
         if (!neighbour) continue;
+
+        // DPD cut-off radius from the contact sub-properties (material_relations).
+        // DPD_CUTOFF_RADIUS lives there, NOT on the element's own base properties.
+        Properties& contact_props =
+            GetProperties().GetSubProperties(neighbour->GetProperties().Id());
+        if (!contact_props.Has(DPD_CUTOFF_RADIUS)) continue;
+        const double rc = contact_props[DPD_CUTOFF_RADIUS];
 
         // Vector from neighbour to me (same sign convention as base class)
         array_1d<double, 3> r_ij;
@@ -45,14 +53,11 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
         const double dist = norm_2(r_ij);
         if (dist < 1.0e-12) continue;
 
-        const double r_cut = my_rc + neighbour->GetInteractionRadius();
+        // Pure DPD range condition — independent of geometric radii
+        if (dist >= rc) continue;
 
-        // Only act within the cutoff radius; skip if already overlapping
-        // (those were handled in Step 1 by the base class)
-        if (dist >= r_cut) continue;
-
-        // Indentation for DPD: negative value means no geometric overlap
-        const double indentation = r_cut - dist; // > 0 always here
+        // "indentation" in the DPD sense: rc - dist > 0
+        const double indentation = rc - dist;
 
         // Build a minimal local coordinate system (normal = r_ij / dist)
         double LocalCoordSystem[3][3] = {{0.0, 0.0, 0.0},
@@ -61,7 +66,7 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
         for (int k = 0; k < 3; ++k)
             LocalCoordSystem[2][k] = r_ij[k] / dist; // normal (local z)
 
-        // Relative velocity projected onto normal
+        // Relative velocity
         const array_1d<double, 3>& nb_vel =
             neighbour->GetGeometry()[0].FastGetSolutionStepValue(VELOCITY);
         array_1d<double, 3> rel_vel;
@@ -69,7 +74,6 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
 
         double RelVel[3]          = {rel_vel[0], rel_vel[1], rel_vel[2]};
         double LocalDeltDisp[3]   = {0.0, 0.0, 0.0};
-        double DeltDisp[3]        = {0.0, 0.0, 0.0};
 
         // Recover previous elastic force in local frame from history
         double OldLocalElasticContactForce[3] = {0.0, 0.0, 0.0};
@@ -82,11 +86,10 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
                     LocalCoordSystem[k][2] * stored[2];
         }
 
-        double LocalElasticContactForce[3]    = {0.0, 0.0, 0.0};
-        double ViscoDampingLocalContactForce[3] = {0.0, 0.0, 0.0};
+        double LocalElasticContactForce[3]      = {0.0, 0.0, 0.0};
+        double ViscoDampingLocalContactForce[3]  = {0.0, 0.0, 0.0};
         double cohesive_force = 0.0;
         bool   sliding        = false;
-        double OldLocalCoordSystem[3][3] = {};
 
         // Invoke the per-particle cloned DPD constitutive law
         mDiscontinuumConstitutiveLaw->InitializeContact(this, neighbour, indentation);
@@ -107,7 +110,6 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
             LocalCoordSystem);
 
         // Rotate local forces back to global frame and accumulate
-        // (same rotation the base class uses after its own loop body)
         for (int k = 0; k < 3; ++k) {
             const double f_elastic = LocalElasticContactForce[k];
             const double f_visco   = ViscoDampingLocalContactForce[k];
