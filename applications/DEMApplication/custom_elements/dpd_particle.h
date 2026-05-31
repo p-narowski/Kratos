@@ -28,13 +28,12 @@ namespace Kratos
 
         std::string Info() const override { return "DPDParticle"; }
 
-        void ComputeBallToBallContactForceAndMoment(
-            SphericParticle::ParticleDataBuffer& data_buffer,
-            const ProcessInfo& r_process_info,
-            array_1d<double, 3>& rElasticForce,
-            array_1d<double, 3>& rContactForce) override;
-
     protected:
+        // Override only this hook so DPD range forces fire even when
+        // indentation <= 0 (non-overlapping pairs).  The base-class
+        // ComputeBallToBallContactForceAndMoment loop is kept intact so
+        // forces are accumulated correctly into rElasticForce / rContactForce
+        // and ultimately into TOTAL_FORCES.
         void EvaluateBallToBallForcesForPositiveIndentiations(
             SphericParticle::ParticleDataBuffer& data_buffer,
             const ProcessInfo& r_process_info,
