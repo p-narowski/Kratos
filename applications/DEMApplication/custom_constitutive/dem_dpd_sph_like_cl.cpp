@@ -25,10 +25,6 @@ namespace Kratos
     {
         return "DEM_DPD_SPH_LIKE";
     }
-    bool DEM_DPD_SPH_LIKE::IsRangeForce() const
-    {
-        return true;
-    }
 
     void DEM_DPD_SPH_LIKE::Check(Properties::Pointer pProp) const
     {
