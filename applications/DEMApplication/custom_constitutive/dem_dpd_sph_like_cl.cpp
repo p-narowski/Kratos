@@ -26,6 +26,8 @@ namespace Kratos
         return "DEM_DPD_SPH_LIKE";
     }
 
+    // NOTE: GetContactName() and IsRangeForce() are defined inline in the header.
+
     void DEM_DPD_SPH_LIKE::Check(Properties::Pointer pProp) const
     {
         DEM_D_Linear_viscous_Coulomb::Check(pProp);
@@ -143,52 +145,63 @@ namespace Kratos
         Condition *const wall,
         bool &sliding)
     {
-        std::cout << "[DPD-FEM-DBG] ENTERED CalculateForcesWith FEM" << std::endl;
-
         KRATOS_TRY
 
+        // Zero all outputs first (safe default)
         LocalElasticContactForce[0] = 0.0;
         LocalElasticContactForce[1] = 0.0;
         LocalElasticContactForce[2] = 0.0;
-
         ViscoDampingLocalContactForce[0] = 0.0;
         ViscoDampingLocalContactForce[1] = 0.0;
         ViscoDampingLocalContactForce[2] = 0.0;
-
         cohesive_force = 0.0;
         sliding = false;
 
         Properties &properties_of_this_contact =
             element->GetProperties().GetSubProperties(wall->GetProperties().Id());
 
-        const double h = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
+        const double h  = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
         const double rc = properties_of_this_contact[DPD_CUTOFF_RADIUS];
-        const double a = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
+        const double a  = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
         const double gamma_n = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_NORMAL];
         const double gamma_t = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_TANGENTIAL];
 
-        // Mirror-ghost wall distance based on kernel width (no radius)
+        // Mirror-ghost wall distance: use actual geometric distance to wall face
+        // (DistPToB is encoded as: indentation = GetInteractionRadius() - DistPToB)
+        // so DistPToB = GetInteractionRadius() - indentation.
         const double R_interaction = element->GetInteractionRadius();
-        const double dist_to_wall = R_interaction - indentation; // ≈ DistPToB
+        const double dist_to_wall  = R_interaction - indentation; // physical DistPToB
         const double d = std::max(dist_to_wall, 1.0e-12);
-        const double r = 2.0 * d; // mirror-ghost
+        const double r = 2.0 * d; // mirror-ghost separation
 
-        if (r < 1.0e-15 || r >= rc)
+        // Diagnostic print for first few wall contacts
+        static int fem_diag_count = 0;
+        if (fem_diag_count < 5)
         {
-            return;
+            KRATOS_INFO("DPD-FEM") << "indentation=" << indentation
+                                   << " R=" << R_interaction
+                                   << " dist_to_wall=" << dist_to_wall
+                                   << " r=" << r
+                                   << " rc=" << rc << std::endl;
+            ++fem_diag_count;
+        }
+
+        // Guard: bail out if r is out of the active kernel range
+        if (r <= 0.0 || r >= rc)
+        {
+            return; // outputs already zeroed above
         }
 
         const double wc = KernelWeight(r, h, rc);
         const double wd = DissipativeWeight(r, h, rc);
-        // Enforce ghost velocity = -particle velocity:
-        // relative velocity for DPD is v_p - v_g = v_p - (-v_p) = 2 v_p
+
+        // Ghost particle velocity = -particle velocity (no-slip mirror)
+        // => relative velocity v_p - v_ghost = v_p - (-v_p) = 2 v_p
         const double vrel_t0 = 2.0 * LocalRelVel[0];
         const double vrel_t1 = 2.0 * LocalRelVel[1];
-        const double vrel_n = 2.0 * LocalRelVel[2];
+        const double vrel_n  = 2.0 * LocalRelVel[2];
 
-        LocalElasticContactForce[2] = a * wc;
-
-        // Dissipative wall force: separate tangential / normal damping (particle vs ghost)
+        LocalElasticContactForce[2]      =  a       * wc;
         ViscoDampingLocalContactForce[0] = -gamma_t * wd * vrel_t0;
         ViscoDampingLocalContactForce[1] = -gamma_t * wd * vrel_t1;
         ViscoDampingLocalContactForce[2] = -gamma_n * wd * vrel_n;
@@ -200,23 +213,17 @@ namespace Kratos
                 std::sqrt(LocalElasticContactForce[0] * LocalElasticContactForce[0] +
                           LocalElasticContactForce[1] * LocalElasticContactForce[1] +
                           LocalElasticContactForce[2] * LocalElasticContactForce[2]);
-
             const double fvis =
                 std::sqrt(ViscoDampingLocalContactForce[0] * ViscoDampingLocalContactForce[0] +
                           ViscoDampingLocalContactForce[1] * ViscoDampingLocalContactForce[1] +
                           ViscoDampingLocalContactForce[2] * ViscoDampingLocalContactForce[2]);
-
             std::cout << "[DPD-FEM-DBG] "
                       << "indent=" << indentation
-                      << " r=" << r
-                      << " rc=" << rc
-                      << " wc=" << wc
-                      << " wd=" << wd
-                      << " |Fel|=" << fel
-                      << " |Fvis|=" << fvis
+                      << " r=" << r << " rc=" << rc
+                      << " wc=" << wc << " wd=" << wd
+                      << " |Fel|=" << fel << " |Fvis|=" << fvis
                       << " vrel=(" << vrel_t0 << "," << vrel_t1 << "," << vrel_n << ")"
                       << std::endl;
-
             ++fem_dbg_count;
         }
 
@@ -238,38 +245,36 @@ namespace Kratos
         bool &sliding,
         double LocalCoordSystem[3][3])
     {
-        std::cout << "[DPD-PP-DBG] ENTERED CalculateForces" << std::endl;
         KRATOS_TRY
 
+        // Zero all outputs first (safe default)
         LocalElasticContactForce[0] = 0.0;
         LocalElasticContactForce[1] = 0.0;
         LocalElasticContactForce[2] = 0.0;
-
         ViscoDampingLocalContactForce[0] = 0.0;
         ViscoDampingLocalContactForce[1] = 0.0;
         ViscoDampingLocalContactForce[2] = 0.0;
-
         cohesive_force = 0.0;
         sliding = false;
 
         Properties &properties_of_this_contact =
             element1->GetProperties().GetSubProperties(element2->GetProperties().Id());
 
-        const double h = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
+        const double h  = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
         const double rc = properties_of_this_contact[DPD_CUTOFF_RADIUS];
-        const double a = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
+        const double a  = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
         const double gamma_n = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_NORMAL];
         const double gamma_t = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_TANGENTIAL];
 
         const auto &x1 = element1->GetGeometry()[0].Coordinates();
         const auto &x2 = element2->GetGeometry()[0].Coordinates();
-
         const double dx = x1[0] - x2[0];
         const double dy = x1[1] - x2[1];
         const double dz = x1[2] - x2[2];
-        const double r = std::sqrt(dx * dx + dy * dy + dz * dz);
+        const double r  = std::sqrt(dx*dx + dy*dy + dz*dz);
 
-        if (r < 1.0e-15 || r >= rc)
+        // Guard: bail out if r is out of range (zeroes already set above)
+        if (r <= 0.0 || r >= rc)
         {
             return;
         }
@@ -278,8 +283,7 @@ namespace Kratos
         const double wd = DissipativeWeight(r, h, rc);
 
         // Conservative: purely normal
-        LocalElasticContactForce[2] = a * wc;
-
+        LocalElasticContactForce[2]      =  a       * wc;
         // Dissipative: split normal / tangential
         ViscoDampingLocalContactForce[0] = -gamma_t * wd * LocalRelVel[0];
         ViscoDampingLocalContactForce[1] = -gamma_t * wd * LocalRelVel[1];
@@ -292,22 +296,16 @@ namespace Kratos
                 std::sqrt(LocalElasticContactForce[0] * LocalElasticContactForce[0] +
                           LocalElasticContactForce[1] * LocalElasticContactForce[1] +
                           LocalElasticContactForce[2] * LocalElasticContactForce[2]);
-
             const double fvis =
                 std::sqrt(ViscoDampingLocalContactForce[0] * ViscoDampingLocalContactForce[0] +
                           ViscoDampingLocalContactForce[1] * ViscoDampingLocalContactForce[1] +
                           ViscoDampingLocalContactForce[2] * ViscoDampingLocalContactForce[2]);
-
             std::cout << "[DPD-PP-DBG] "
-                      << "r=" << r
-                      << " rc=" << rc
-                      << " wc=" << wc
-                      << " wd=" << wd
-                      << " |Fel|=" << fel
-                      << " |Fvis|=" << fvis
+                      << "r=" << r << " rc=" << rc
+                      << " wc=" << wc << " wd=" << wd
+                      << " |Fel|=" << fel << " |Fvis|=" << fvis
                       << " vrel=(" << LocalRelVel[0] << "," << LocalRelVel[1] << "," << LocalRelVel[2] << ")"
                       << std::endl;
-
             ++pp_dbg_count;
         }
 
