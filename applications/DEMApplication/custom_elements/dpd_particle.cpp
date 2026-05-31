@@ -1,4 +1,5 @@
 #include "custom_elements/dpd_particle.h"
+#include "DEM_application_variables.h"
 
 namespace Kratos {
 
@@ -50,6 +51,7 @@ void DPDParticle::ComputeBallToBallContactForceAndMoment(
             neighbour_elastic_contact_force);
     }
 }
+
 void DPDParticle::EvaluateBallToBallForcesForPositiveIndentiations(
     SphericParticle::ParticleDataBuffer& data_buffer,
     const ProcessInfo& r_process_info,
@@ -66,13 +68,50 @@ void DPDParticle::EvaluateBallToBallForcesForPositiveIndentiations(
     double OldLocalCoordSystem[3][3],
     array_1d<double, 3>& neighbour_elastic_contact_force)
 {
-    // Delegate to base — allows range force (indentation may be <= 0)
-    SphericParticle::EvaluateBallToBallForcesForPositiveIndentiations(
-        data_buffer, r_process_info,
-        LocalElasticContactForce, DeltDisp, LocalDeltDisp, RelVel,
-        indentation, ViscoDampingLocalContactForce, cohesive_force,
-        element2, sliding, LocalCoordSystem, OldLocalCoordSystem,
-        neighbour_elastic_contact_force);
+    // Call the DPD constitutive law directly, bypassing the base class
+    // indentation > 0 guard that would silently skip all range-force pairs.
+    DEMDiscontinuumConstitutiveLaw& cl =
+        *GetProperties()[DEM_DISCONTINUUM_CONSTITUTIVE_LAW_POINTER];
+
+    cl.InitializeContact(this, element2, indentation);
+
+    cl.CalculateForces(
+        r_process_info,
+        data_buffer.mOldLocalElasticContactForce,
+        LocalElasticContactForce,
+        LocalDeltDisp,
+        RelVel,
+        indentation,
+        data_buffer.mPreviousIndentation,
+        ViscoDampingLocalContactForce,
+        cohesive_force,
+        this,
+        element2,
+        sliding,
+        LocalCoordSystem);
+
+    // Rotate local forces to global and accumulate
+    double TotalContactForce[3];
+    for (int k = 0; k < 3; k++) {
+        TotalContactForce[k] = LocalElasticContactForce[k] + ViscoDampingLocalContactForce[k];
+    }
+
+    // Local-to-global rotation: F_global = R^T * F_local
+    // LocalCoordSystem rows are the local axes expressed in global coords
+    array_1d<double, 3>& elastic_force = GetGeometry()[0].FastGetSolutionStepValue(ELASTIC_FORCES);
+    array_1d<double, 3>& total_force   = GetGeometry()[0].FastGetSolutionStepValue(CONTACT_FORCES);
+
+    for (int j = 0; j < 3; j++) {
+        double elastic_global_j = 0.0;
+        double total_global_j   = 0.0;
+        for (int k = 0; k < 3; k++) {
+            elastic_global_j += LocalCoordSystem[k][j] * LocalElasticContactForce[k];
+            total_global_j   += LocalCoordSystem[k][j] * TotalContactForce[k];
+        }
+        elastic_force[j] += elastic_global_j;
+        total_force[j]   += total_global_j;
+        neighbour_elastic_contact_force[j] = -elastic_global_j;
+    }
 }
 
 } // namespace Kratos
