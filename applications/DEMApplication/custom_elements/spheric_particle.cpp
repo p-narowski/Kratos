@@ -1109,7 +1109,7 @@ namespace Kratos
 
                     if (data_buffer.mTime < (0.0 + 2.0 * data_buffer.mDt))
                     {
-                        if (indentation > 0.0 || mDiscontinuumConstitutiveLaw->IsRangeForce())
+                        if (indentation > 0.0 || (mDiscontinuumConstitutiveLaw && mDiscontinuumConstitutiveLaw->IsRangeForce()))
                         {
                             this->mIndentationInitialWall[static_cast<int>(rNeighbours[i]->Id())] = indentation;
                         }
@@ -1171,7 +1171,7 @@ namespace Kratos
                 data_buffer.mLocalRelVel[1] = 0.0;
                 data_buffer.mLocalRelVel[2] = 0.0;
 
-                if (indentation > 0.0 || mDiscontinuumConstitutiveLaw->IsRangeForce())
+                if (indentation > 0.0 || (mDiscontinuumConstitutiveLaw && mDiscontinuumConstitutiveLaw->IsRangeForce()))
                 {
 
                     GeometryFunctions::VectorGlobal2Local(data_buffer.mLocalCoordSystem, DeltVel, data_buffer.mLocalRelVel);
@@ -1338,7 +1338,7 @@ namespace Kratos
             data_buffer.mLocalRelVel[1] = 0.0;
             data_buffer.mLocalRelVel[2] = 0.0;
 
-            if (indentation > 0.0 || mDiscontinuumConstitutiveLaw->IsRangeForce())
+            if (indentation > 0.0 || (mDiscontinuumConstitutiveLaw && mDiscontinuumConstitutiveLaw->IsRangeForce()))
             {
                 GeometryFunctions::VectorGlobal2Local(data_buffer.mLocalCoordSystem, DeltVel, data_buffer.mLocalRelVel);
                 mDiscontinuumConstitutiveLaw = pCloneDiscontinuumConstitutiveLawWithFEMNeighbour(wall);
@@ -2215,7 +2215,7 @@ namespace Kratos
     {
         if (r_process_info[RVE_ANALYSIS])
         {
-            if (indentation > 0.0 || mDiscontinuumConstitutiveLaw->IsRangeForce())
+            if (indentation > 0.0 || (mDiscontinuumConstitutiveLaw && mDiscontinuumConstitutiveLaw->IsRangeForce()))
             {
                 int neighbor_id = data_buffer.mpOtherRigidFace->GetId();
                 mBallToRigidFaceStoredInfo[neighbor_id].indentation = indentation;
