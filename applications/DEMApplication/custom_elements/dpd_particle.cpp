@@ -43,6 +43,19 @@ namespace Kratos
             if (!neighbour)
                 continue;
 
+            const int my_mat_id = GetProperties().Id();
+            const int nb_mat_id = neighbour->GetProperties().Id();
+
+            const bool is_fluid_fluid_pair = (my_mat_id == 1 && nb_mat_id == 1);
+            const bool is_fluid_suspended_pair = (my_mat_id == 1 && nb_mat_id == 3) ||
+                                                 (my_mat_id == 3 && nb_mat_id == 1);
+
+            // Only these pairs should enter the custom DPD range-force path.
+            // All other pairs (including suspended-wall and wall-wall) are handled
+            // exclusively by the base-class contact logic above.
+            if (!(is_fluid_fluid_pair || is_fluid_suspended_pair))
+                continue;
+
             // DPD cut-off radius from the contact sub-properties (material_relations).
             // DPD_CUTOFF_RADIUS lives there, NOT on the element's own base properties.
             Properties &contact_props =
@@ -105,6 +118,11 @@ namespace Kratos
             {
                 continue;
             }
+            // Guard against accidentally running the DPD branch with a pure Hertz law
+            if (mDiscontinuumConstitutiveLaw->Info() == "DEM_D_Hertz_viscous_Coulomb")
+            {
+                continue;
+            }
             mDiscontinuumConstitutiveLaw->CalculateForces(
                 r_process_info,
                 OldLocalElasticContactForce,
@@ -119,7 +137,6 @@ namespace Kratos
                 neighbour,
                 sliding,
                 LocalCoordSystem);
-
             // Rotate local forces back to global frame and accumulate
             for (int k = 0; k < 3; ++k)
             {
