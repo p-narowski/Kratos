@@ -517,6 +517,9 @@ namespace Kratos
     KRATOS_CREATE_VARIABLE(double, DPD_DISSIPATIVE_COEFF)
     KRATOS_CREATE_VARIABLE(double, DPD_DISSIPATIVE_COEFF_NORMAL)
     KRATOS_CREATE_VARIABLE(double, DPD_DISSIPATIVE_COEFF_TANGENTIAL)
+    KRATOS_CREATE_VARIABLE(double, DPD_FLUID_VISCOSITY)
+    KRATOS_CREATE_VARIABLE(double, COUPLING_SEARCH_RADIUS)
+    KRATOS_CREATE_VARIABLE(double, COUPLING_KERNEL_LENGTH)
 
     // FLAGS
     KRATOS_CREATE_LOCAL_FLAG(DEMFlags, HAS_ROTATION, 0);
@@ -545,6 +548,7 @@ namespace Kratos
                                                    mCylinderContinuumParticle2D(0, Element::GeometryType::Pointer(new Sphere3D1<Node>(Element::GeometryType::PointsArrayType(1)))),
                                                    mSphericParticle3D(0, Element::GeometryType::Pointer(new Sphere3D1<Node>(Element::GeometryType::PointsArrayType(1)))),
                                                    mDPDParticle(0, Element::GeometryType::Pointer(new Sphere3D1<Node>(Element::GeometryType::PointsArrayType(1)))),
+                                                   mSuspendedParticle(0, Element::GeometryType::Pointer(new Sphere3D1<Node>(Element::GeometryType::PointsArrayType(1)))),
                                                    mNanoParticle3D(0, Element::GeometryType::Pointer(new Sphere3D1<Node>(Element::GeometryType::PointsArrayType(1)))),
                                                    mAnalyticSphericParticle3D(0, Element::GeometryType::Pointer(new Sphere3D1<Node>(Element::GeometryType::PointsArrayType(1)))),
                                                    mSphericContinuumParticle3D(0, Element::GeometryType::Pointer(new Sphere3D1<Node>(Element::GeometryType::PointsArrayType(1)))),
@@ -1034,12 +1038,16 @@ namespace Kratos
         KRATOS_REGISTER_VARIABLE(DPD_DISSIPATIVE_COEFF)
         KRATOS_REGISTER_VARIABLE(DPD_DISSIPATIVE_COEFF_NORMAL)
         KRATOS_REGISTER_VARIABLE(DPD_DISSIPATIVE_COEFF_TANGENTIAL)
-        
+        KRATOS_REGISTER_VARIABLE(DPD_FLUID_VISCOSITY)
+        KRATOS_REGISTER_VARIABLE(COUPLING_SEARCH_RADIUS)
+        KRATOS_REGISTER_VARIABLE(COUPLING_KERNEL_LENGTH)
+
         // ELEMENTS
         KRATOS_REGISTER_ELEMENT("CylinderParticle2D", mCylinderParticle2D)
         KRATOS_REGISTER_ELEMENT("CylinderContinuumParticle2D", mCylinderContinuumParticle2D)
         KRATOS_REGISTER_ELEMENT("SphericParticle3D", mSphericParticle3D)
         KRATOS_REGISTER_ELEMENT("DPDParticle", mDPDParticle)
+        KRATOS_REGISTER_ELEMENT("SuspendedParticle", mSuspendedParticle)
         KRATOS_REGISTER_ELEMENT("NanoParticle3D", mNanoParticle3D)
         KRATOS_REGISTER_ELEMENT("AnalyticSphericParticle3D", mAnalyticSphericParticle3D)
         KRATOS_REGISTER_ELEMENT("SphericContinuumParticle3D", mSphericContinuumParticle3D)
