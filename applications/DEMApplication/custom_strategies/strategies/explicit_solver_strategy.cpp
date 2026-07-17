@@ -1608,16 +1608,15 @@ namespace Kratos
                            << ", number_of_elements = "
                            << number_of_elements << std::endl;
 
-        KRATOS_ERROR_IF(number_of_particles > number_of_elements)
-            << "SearchNeighbours inconsistency: mListOfSphericParticles.size() = "
+        KRATOS_ERROR_IF(number_of_particles != number_of_elements)
+            << "SearchNeighbours invariants violated: mListOfSphericParticles.size() = "
             << number_of_particles
-            << " but LocalMesh().ElementsArray().size() = "
-            << number_of_elements
-            << ". Search result containers would be indexed out of bounds." << std::endl;
+            << ", LocalMesh().ElementsArray().size() = "
+            << number_of_elements << std::endl;
 
-        // Resize using the actual loop/indexing size
-        GetResults().resize(number_of_particles);
-        GetResultsDistances().resize(number_of_particles);
+        // Resize using the local element container size, as expected by the spatial search
+        GetResults().resize(number_of_elements);
+        GetResultsDistances().resize(number_of_elements);
 
         mpSpSearch->SearchElementsInRadiusExclusive(
             r_model_part,
