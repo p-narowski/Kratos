@@ -50,7 +50,7 @@ cmake -H"${KRATOS_SOURCE}" -B"${KRATOS_BUILD}/${KRATOS_BUILD_TYPE}" \
 -DCMAKE_POLICY_VERSION_MINIMUM=3.5                                  \
 -DUSE_EIGEN_MKL=OFF                                                 \
 -DKRATOS_GENERATE_PYTHON_STUBS=ON                                   \
--DUSE_TRIANGLE_NONFREE_TPL=ON                                       \ 
+-DUSE_TRIANGLE_NONFREE_TPL=ON                                       \
 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 # Build
