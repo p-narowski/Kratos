@@ -33,6 +33,14 @@ namespace Kratos
         SphericParticle::ComputeBallToBallContactForceAndMoment(
             data_buffer, r_process_info, rElasticForce, rContactForce);
 
+        KRATOS_ERROR_IF(mNeighbourElasticContactForces.size() < mNeighbourElements.size())
+            << "Neighbour history smaller than neighbour list for particle Id "
+            << Id()
+            << ". mNeighbourElasticContactForces.size() = "
+            << mNeighbourElasticContactForces.size()
+            << ", mNeighbourElements.size() = "
+            << mNeighbourElements.size() << std::endl;
+
         // --- Step 2: DPD range forces for all neighbours within rc ---
         const array_1d<double, 3> &my_pos = GetGeometry()[0].Coordinates();
         const array_1d<double, 3> &my_vel = GetGeometry()[0].FastGetSolutionStepValue(VELOCITY);

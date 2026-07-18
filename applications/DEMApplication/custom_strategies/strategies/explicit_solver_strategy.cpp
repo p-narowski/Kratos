@@ -1614,13 +1614,20 @@ namespace Kratos
             << ", LocalMesh().ElementsArray().size() = "
             << number_of_elements << std::endl;
 
-        // Resize using the local element container size, as expected by the spatial search
         GetResults().resize(number_of_elements);
         GetResultsDistances().resize(number_of_elements);
 
+        const auto &r_amplified_radii = this->GetArrayOfAmplifiedRadii();
+
+        KRATOS_ERROR_IF(static_cast<int>(r_amplified_radii.size()) != number_of_elements)
+            << "SearchNeighbours radii size mismatch: GetArrayOfAmplifiedRadii().size() = "
+            << r_amplified_radii.size()
+            << ", LocalMesh().ElementsArray().size() = "
+            << number_of_elements << std::endl;
+
         mpSpSearch->SearchElementsInRadiusExclusive(
             r_model_part,
-            this->GetArrayOfAmplifiedRadii(),
+            r_amplified_radii,
             this->GetResults(),
             this->GetResultsDistances());
 
@@ -1656,6 +1663,10 @@ namespace Kratos
                 Element *p_neighbour_element = (*neighbour_it).get();
                 if (!p_neighbour_element)
                     continue;
+
+                KRATOS_ERROR_IF(p_neighbour_element == nullptr)
+                    << "Null neighbour element pointer in SearchNeighbours at particle index "
+                    << i << std::endl;
 
                 SphericParticle *p_spheric_neighbour_particle =
                     dynamic_cast<SphericParticle *>(p_neighbour_element);
