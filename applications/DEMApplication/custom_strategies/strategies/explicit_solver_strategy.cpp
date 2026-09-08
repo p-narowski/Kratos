@@ -1619,15 +1619,9 @@ namespace Kratos
 
         const auto &r_amplified_radii = this->GetArrayOfAmplifiedRadii();
 
-        KRATOS_ERROR_IF(static_cast<int>(r_amplified_radii.size()) != number_of_elements)
-            << "SearchNeighbours radii size mismatch: GetArrayOfAmplifiedRadii().size() = "
-            << r_amplified_radii.size()
-            << ", LocalMesh().ElementsArray().size() = "
-            << number_of_elements << std::endl;
-
         mpSpSearch->SearchElementsInRadiusExclusive(
             r_model_part,
-            r_amplified_radii,
+            this->GetArrayOfAmplifiedRadii(),
             this->GetResults(),
             this->GetResultsDistances());
 
