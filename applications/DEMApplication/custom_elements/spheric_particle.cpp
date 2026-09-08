@@ -1171,23 +1171,45 @@ namespace Kratos
                 data_buffer.mLocalRelVel[1] = 0.0;
                 data_buffer.mLocalRelVel[2] = 0.0;
 
-                if (indentation > 0.0 || (mDiscontinuumConstitutiveLaw && mDiscontinuumConstitutiveLaw->IsRangeForce()))
-                {
+                // Clone the constitutive law for THIS particle-wall pair before
+                // deciding whether it is a standard overlap contact or a DPD range contact.
+                mDiscontinuumConstitutiveLaw =
+                    pCloneDiscontinuumConstitutiveLawWithFEMNeighbour(wall);
 
-                    GeometryFunctions::VectorGlobal2Local(data_buffer.mLocalCoordSystem, DeltVel, data_buffer.mLocalRelVel);
-                    mDiscontinuumConstitutiveLaw = pCloneDiscontinuumConstitutiveLawWithFEMNeighbour(wall);
-                    mDiscontinuumConstitutiveLaw->CalculateForcesWithFEM(r_process_info,
-                                                                         OldLocalElasticContactForce,
-                                                                         LocalElasticContactForce,
-                                                                         LocalDeltDisp,
-                                                                         data_buffer.mLocalRelVel,
-                                                                         indentation,
-                                                                         previous_indentation,
-                                                                         ViscoDampingLocalContactForce,
-                                                                         cohesive_force,
-                                                                         this,
-                                                                         wall,
-                                                                         sliding);
+                KRATOS_ERROR_IF(mDiscontinuumConstitutiveLaw == nullptr)
+                    << "Null FEM constitutive law for particle " << Id()
+                    << " and wall " << wall->Id() << std::endl;
+
+                const bool is_geometric_contact = indentation > 0.0;
+                const bool is_range_force =
+                    mDiscontinuumConstitutiveLaw->IsRangeForce();
+
+                if (is_geometric_contact || is_range_force)
+                {
+                    GeometryFunctions::VectorGlobal2Local(
+                        data_buffer.mLocalCoordSystem,
+                        DeltVel,
+                        data_buffer.mLocalRelVel);
+
+                    mDiscontinuumConstitutiveLaw->InitializeContactWithFEM(
+                        this,
+                        wall,
+                        indentation,
+                        ini_delta);
+
+                    mDiscontinuumConstitutiveLaw->CalculateForcesWithFEM(
+                        r_process_info,
+                        OldLocalElasticContactForce,
+                        LocalElasticContactForce,
+                        LocalDeltDisp,
+                        data_buffer.mLocalRelVel,
+                        indentation,
+                        previous_indentation,
+                        ViscoDampingLocalContactForce,
+                        cohesive_force,
+                        this,
+                        wall,
+                        sliding);
                 }
 
                 double LocalContactForce[3] = {0.0};
@@ -1338,10 +1360,31 @@ namespace Kratos
             data_buffer.mLocalRelVel[1] = 0.0;
             data_buffer.mLocalRelVel[2] = 0.0;
 
-            if (indentation > 0.0 || (mDiscontinuumConstitutiveLaw && mDiscontinuumConstitutiveLaw->IsRangeForce()))
+            // Clone the law for the current particle-wall pair before the range test.
+            mDiscontinuumConstitutiveLaw =
+                pCloneDiscontinuumConstitutiveLawWithFEMNeighbour(wall);
+
+            KRATOS_ERROR_IF(mDiscontinuumConstitutiveLaw == nullptr)
+                << "Null FEM constitutive law for particle " << Id()
+                << " and wall " << wall->Id() << std::endl;
+
+            const bool is_geometric_contact = indentation > 0.0;
+            const bool is_range_force =
+                mDiscontinuumConstitutiveLaw->IsRangeForce();
+
+            if (is_geometric_contact || is_range_force)
             {
-                GeometryFunctions::VectorGlobal2Local(data_buffer.mLocalCoordSystem, DeltVel, data_buffer.mLocalRelVel);
-                mDiscontinuumConstitutiveLaw = pCloneDiscontinuumConstitutiveLawWithFEMNeighbour(wall);
+                GeometryFunctions::VectorGlobal2Local(
+                    data_buffer.mLocalCoordSystem,
+                    DeltVel,
+                    data_buffer.mLocalRelVel);
+
+                mDiscontinuumConstitutiveLaw->InitializeContactWithFEM(
+                    this,
+                    wall,
+                    indentation,
+                    ini_delta);
+
                 mDiscontinuumConstitutiveLaw->CalculateForcesWithFEM(
                     r_process_info,
                     OldLocalElasticContactForce,

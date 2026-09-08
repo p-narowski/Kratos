@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <atomic>
 
 namespace Kratos
 {
@@ -160,9 +161,9 @@ namespace Kratos
         Properties &properties_of_this_contact =
             element->GetProperties().GetSubProperties(wall->GetProperties().Id());
 
-        const double h  = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
+        const double h = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
         const double rc = properties_of_this_contact[DPD_CUTOFF_RADIUS];
-        const double a  = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
+        const double a = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
         const double gamma_n = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_NORMAL];
         const double gamma_t = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_TANGENTIAL];
 
@@ -170,7 +171,7 @@ namespace Kratos
         // (DistPToB is encoded as: indentation = GetInteractionRadius() - DistPToB)
         // so DistPToB = GetInteractionRadius() - indentation.
         const double R_interaction = element->GetInteractionRadius();
-        const double dist_to_wall  = R_interaction - indentation; // physical DistPToB
+        const double dist_to_wall = R_interaction - indentation; // physical DistPToB
         const double d = std::max(dist_to_wall, 1.0e-12);
         const double r = 2.0 * d; // mirror-ghost separation
 
@@ -199,9 +200,9 @@ namespace Kratos
         // => relative velocity v_p - v_ghost = v_p - (-v_p) = 2 v_p
         const double vrel_t0 = 2.0 * LocalRelVel[0];
         const double vrel_t1 = 2.0 * LocalRelVel[1];
-        const double vrel_n  = 2.0 * LocalRelVel[2];
+        const double vrel_n = 2.0 * LocalRelVel[2];
 
-        LocalElasticContactForce[2]      =  a       * wc;
+        LocalElasticContactForce[2] = a * wc;
         ViscoDampingLocalContactForce[0] = -gamma_t * wd * vrel_t0;
         ViscoDampingLocalContactForce[1] = -gamma_t * wd * vrel_t1;
         ViscoDampingLocalContactForce[2] = -gamma_n * wd * vrel_n;
@@ -225,6 +226,25 @@ namespace Kratos
                       << " vrel=(" << vrel_t0 << "," << vrel_t1 << "," << vrel_n << ")"
                       << std::endl;
             ++fem_dbg_count;
+        }
+        static std::atomic<int> wall_call_count{0};
+
+        const int count = wall_call_count.fetch_add(1);
+
+        if (count < 20)
+        {
+            KRATOS_INFO("DPD-WALL")
+                << "particle=" << element->Id()
+                << " wall=" << wall->Id()
+                << " r=" << r
+                << " rc=" << rc
+                << " vrel_t=(" << vrel_t0 << ", " << vrel_t1 << ")"
+                << " vrel_n=" << vrel_n
+                << " Fvis_local=("
+                << ViscoDampingLocalContactForce[0] << ", "
+                << ViscoDampingLocalContactForce[1] << ", "
+                << ViscoDampingLocalContactForce[2] << ")"
+                << std::endl;
         }
 
         KRATOS_CATCH("")
@@ -260,9 +280,9 @@ namespace Kratos
         Properties &properties_of_this_contact =
             element1->GetProperties().GetSubProperties(element2->GetProperties().Id());
 
-        const double h  = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
+        const double h = properties_of_this_contact[DPD_SMOOTHING_LENGTH];
         const double rc = properties_of_this_contact[DPD_CUTOFF_RADIUS];
-        const double a  = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
+        const double a = properties_of_this_contact[DPD_CONSERVATIVE_COEFF];
         const double gamma_n = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_NORMAL];
         const double gamma_t = properties_of_this_contact[DPD_DISSIPATIVE_COEFF_TANGENTIAL];
 
@@ -271,7 +291,7 @@ namespace Kratos
         const double dx = x1[0] - x2[0];
         const double dy = x1[1] - x2[1];
         const double dz = x1[2] - x2[2];
-        const double r  = std::sqrt(dx*dx + dy*dy + dz*dz);
+        const double r = std::sqrt(dx * dx + dy * dy + dz * dz);
 
         // Guard: bail out if r is out of range (zeroes already set above)
         if (r <= 0.0 || r >= rc)
@@ -283,7 +303,7 @@ namespace Kratos
         const double wd = DissipativeWeight(r, h, rc);
 
         // Conservative: purely normal
-        LocalElasticContactForce[2]      =  a       * wc;
+        LocalElasticContactForce[2] = a * wc;
         // Dissipative: split normal / tangential
         ViscoDampingLocalContactForce[0] = -gamma_t * wd * LocalRelVel[0];
         ViscoDampingLocalContactForce[1] = -gamma_t * wd * LocalRelVel[1];
