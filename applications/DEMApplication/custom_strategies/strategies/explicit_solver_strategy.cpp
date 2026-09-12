@@ -5,6 +5,8 @@
 #include "explicit_solver_strategy.h"
 #include "custom_utilities/AuxiliaryFunctions.h"
 #include "geometries/point_3d.h"
+#include "DEM_application_variables.h"
+#include "custom_elements/dpd_particle.h"
 
 #include <iostream>
 #include <fstream>
@@ -1972,36 +1974,151 @@ namespace Kratos
             mpDemFemSearch->SearchRigidFaceForDEMInRadiusExclusiveImplementation(pElements, pTConditions, this->GetRigidFaceResults(), this->GetRigidFaceResultsDistances());
 
 #pragma omp parallel for schedule(dynamic, 100)
-            for (int i = 0; i < number_of_particles; i++)
+            for (int i = 0; i < number_of_particles; ++i)
             {
-                mListOfSphericParticles[i]->mNeighbourPotentialRigidFaces.clear();
-                for (ResultConditionsContainerType::iterator neighbour_it = this->GetRigidFaceResults()[i].begin(); neighbour_it != this->GetRigidFaceResults()[i].end(); ++neighbour_it)
+                SphericParticle *p_sphere =
+                    mListOfSphericParticles[i];
+
+                auto &r_potential_walls =
+                    p_sphere->mNeighbourPotentialRigidFaces;
+
+                r_potential_walls.clear();
+
+                const bool is_dpd_particle =
+                    dynamic_cast<DPDParticle *>(p_sphere) != nullptr;
+
+                if (is_dpd_particle)
                 {
-                    Condition *p_neighbour_condition = (*neighbour_it).get();
-                    DEMWall *p_wall = dynamic_cast<DEMWall *>(p_neighbour_condition);
-                    if (mListOfSphericParticles[i]->Is(DEMFlags::POLYHEDRON_SKIN))
+                    /*
+                     * Temporary DPD wall candidate path.
+                     *
+                     * The normal bins search uses the conventional DEM search radius
+                     * and therefore misses separated DPD particles that should interact
+                     * with a wall in the ghost-layer range d < rc/2.
+                     *
+                     * For the slit benchmark, add all DPD-compatible wall faces. The
+                     * DPDParticle wall-force routine later applies the exact geometric
+                     * range condition: 0 < distance_to_wall < 0.5 * rc.
+                     */
+                    for (auto it_condition = pTConditions.begin();
+                         it_condition != pTConditions.end();
+                         ++it_condition)
                     {
-                        bool must_skip_this_one = false;
-                        auto &geom = p_wall->GetGeometry();
-                        const unsigned int number_of_nodes = geom.size();
-                        const array_1d<double, 3> &sphere_center = mListOfSphericParticles[i]->GetGeometry()[0];
-                        const double epsilon = std::numeric_limits<double>::epsilon();
-                        for (unsigned int k = 0; k < number_of_nodes; k++)
+                        DEMWall *p_wall =
+                            dynamic_cast<DEMWall *>(&(*it_condition));
+
+                        if (p_wall == nullptr)
                         {
-                            const double distance_x = std::abs(geom[k][0] - sphere_center[0]);
-                            const double distance_y = std::abs(geom[k][1] - sphere_center[1]);
-                            const double distance_z = std::abs(geom[k][2] - sphere_center[2]);
-                            if (distance_x < epsilon && distance_y < epsilon && distance_z < epsilon)
+                            continue;
+                        }
+
+                        Properties &r_pair_properties =
+                            p_sphere->GetProperties().GetSubProperties(
+                                p_wall->GetProperties().Id());
+
+                        const bool has_dpd_wall_properties =
+                            r_pair_properties.Has(DPD_SMOOTHING_LENGTH) &&
+                            r_pair_properties.Has(DPD_CUTOFF_RADIUS) &&
+                            r_pair_properties.Has(DPD_CONSERVATIVE_COEFF) &&
+                            r_pair_properties.Has(
+                                DPD_DISSIPATIVE_COEFF_NORMAL) &&
+                            r_pair_properties.Has(
+                                DPD_DISSIPATIVE_COEFF_TANGENTIAL);
+
+                        if (has_dpd_wall_properties)
+                        {
+                            r_potential_walls.push_back(p_wall);
+                        }
+                    }
+
+                    static int dpd_potential_wall_debug_counter = 0;
+
+                    if (dpd_potential_wall_debug_counter < 10)
+                    {
+                        KRATOS_INFO("DPD-WALL-SEARCH")
+                            << "particle=" << p_sphere->Id()
+                            << " potential_DPD_walls="
+                            << r_potential_walls.size()
+                            << std::endl;
+
+                        ++dpd_potential_wall_debug_counter;
+                    }
+                }
+                else
+                {
+                    /*
+                     * Original standard DEM path. It remains unchanged for every
+                     * non-DPD particle.
+                     */
+                    for (ResultConditionsContainerType::iterator neighbour_it =
+                             this->GetRigidFaceResults()[i].begin();
+                         neighbour_it != this->GetRigidFaceResults()[i].end();
+                         ++neighbour_it)
+                    {
+                        Condition *p_neighbour_condition =
+                            (*neighbour_it).get();
+
+                        DEMWall *p_wall =
+                            dynamic_cast<DEMWall *>(p_neighbour_condition);
+
+                        if (p_wall == nullptr)
+                        {
+                            continue;
+                        }
+
+                        if (p_sphere->Is(DEMFlags::POLYHEDRON_SKIN))
+                        {
+                            bool must_skip_this_one = false;
+                            auto &r_geometry =
+                                p_wall->GetGeometry();
+
+                            const unsigned int number_of_nodes =
+                                r_geometry.size();
+
+                            const array_1d<double, 3> &r_sphere_center =
+                                p_sphere->GetGeometry()[0];
+
+                            const double epsilon =
+                                std::numeric_limits<double>::epsilon();
+
+                            for (unsigned int k = 0;
+                                 k < number_of_nodes;
+                                 ++k)
                             {
-                                must_skip_this_one = true;
-                                break;
+                                const double distance_x =
+                                    std::abs(
+                                        r_geometry[k][0] -
+                                        r_sphere_center[0]);
+
+                                const double distance_y =
+                                    std::abs(
+                                        r_geometry[k][1] -
+                                        r_sphere_center[1]);
+
+                                const double distance_z =
+                                    std::abs(
+                                        r_geometry[k][2] -
+                                        r_sphere_center[2]);
+
+                                if (distance_x < epsilon &&
+                                    distance_y < epsilon &&
+                                    distance_z < epsilon)
+                                {
+                                    must_skip_this_one = true;
+                                    break;
+                                }
+                            }
+
+                            if (must_skip_this_one)
+                            {
+                                continue;
                             }
                         }
-                        if (must_skip_this_one)
-                            continue;
+
+                        r_potential_walls.push_back(p_wall);
                     }
-                    mListOfSphericParticles[i]->mNeighbourPotentialRigidFaces.push_back(p_wall);
-                } // for results iterator
+                }
+
                 this->GetRigidFaceResults()[i].clear();
                 this->GetRigidFaceResultsDistances()[i].clear();
             }
@@ -2065,19 +2182,134 @@ namespace Kratos
                 ContactType_Array.clear();
                 std::vector<DEMWall *> &potential_neighbour_rigid_faces = p_sphere_i->mNeighbourPotentialRigidFaces;
 
-                for (unsigned int n = 0; n < potential_neighbour_rigid_faces.size(); ++n)
+                for (unsigned int n = 0;
+                     n < potential_neighbour_rigid_faces.size();
+                     ++n)
                 {
-                    Condition *p_neighbour_condition = potential_neighbour_rigid_faces[n];
-                    DEMWall *p_wall = dynamic_cast<DEMWall *>(p_neighbour_condition);
-                    RigidFaceGeometricalConfigureType::DoubleHierarchyMethod(p_sphere_i,
-                                                                             p_wall,
-                                                                             Distance_Array,
-                                                                             Normal_Array,
-                                                                             Weight_Array,
-                                                                             Id_Array,
-                                                                             ContactType_Array);
+                    DEMWall *p_wall =
+                        potential_neighbour_rigid_faces[n];
 
+                    if (p_wall == nullptr)
+                    {
+                        continue;
+                    }
+
+                    Properties &r_pair_properties =
+                        p_sphere_i->GetProperties().GetSubProperties(
+                            p_wall->GetProperties().Id());
+
+                    const bool is_dpd_wall_pair =
+                        r_pair_properties.Has(DPD_SMOOTHING_LENGTH) &&
+                        r_pair_properties.Has(DPD_CUTOFF_RADIUS) &&
+                        r_pair_properties.Has(DPD_CONSERVATIVE_COEFF) &&
+                        r_pair_properties.Has(
+                            DPD_DISSIPATIVE_COEFF_NORMAL) &&
+                        r_pair_properties.Has(
+                            DPD_DISSIPATIVE_COEFF_TANGENTIAL);
+
+                    if (is_dpd_wall_pair)
+                    {
+                        /*
+                         * RigidFace3D::ComputeConditionRelativeData() uses the current
+                         * weight pattern to decide whether to test a face, edge, or vertex.
+                         *
+                         * The slit walls are RigidFace3D3N triangles, so provide three
+                         * positive weights summing to one. This selects the FacetCheck path.
+                         */
+                        array_1d<double, 4> dpd_weights;
+                        dpd_weights.clear();
+
+                        const std::size_t number_of_wall_nodes =
+                            p_wall->GetGeometry().size();
+
+                        if (number_of_wall_nodes == 3)
+                        {
+                            dpd_weights[0] = 1.0 / 3.0;
+                            dpd_weights[1] = 1.0 / 3.0;
+                            dpd_weights[2] = 1.0 / 3.0;
+                            dpd_weights[3] = 0.0;
+                        }
+                        else if (number_of_wall_nodes == 4)
+                        {
+                            dpd_weights[0] = 0.25;
+                            dpd_weights[1] = 0.25;
+                            dpd_weights[2] = 0.25;
+                            dpd_weights[3] = 0.25;
+                        }
+                        else
+                        {
+                            /*
+                             * This temporary DPD path supports only triangular and
+                             * quadrilateral rigid faces.
+                             */
+                            continue;
+                        }
+
+                        p_sphere_i->mNeighbourRigidFaces.push_back(
+                            p_wall);
+
+                        p_sphere_i->mContactConditionWeights.push_back(
+                            dpd_weights);
+
+                        p_sphere_i->mContactConditionContactTypes.push_back(
+                            -1);
+
+                        continue;
+                    }
+
+                    /*
+                     * Keep the existing ordinary DEM hierarchy path unchanged for all
+                     * non-DPD wall relations.
+                     */
+                    RigidFaceGeometricalConfigureType::DoubleHierarchyMethod(
+                        p_sphere_i,
+                        p_wall,
+                        Distance_Array,
+                        Normal_Array,
+                        Weight_Array,
+                        Id_Array,
+                        ContactType_Array);
                 } // loop over temporal neighbours
+
+                const bool is_dpd_particle =
+                    dynamic_cast<DPDParticle *>(p_sphere_i) != nullptr;
+
+                if (is_dpd_particle)
+                {
+                    /*
+                     * DPD-compatible walls were added directly to:
+                     *
+                     *   mNeighbourRigidFaces
+                     *   mContactConditionWeights
+                     *   mContactConditionContactTypes
+                     *
+                     * Do not enter the standard post-filter below. That filter
+                     * assumes every entry came from DoubleHierarchyMethod and therefore
+                     * indexes ContactType_Array[n] and Weight_Array[n]. DPD entries
+                     * deliberately bypass that conventional DEM overlap classification.
+                     */
+                    static int dpd_hierarchy_debug_counter = 0;
+
+#pragma omp critical(DPDWallHierarchyDebug)
+                    {
+                        if (dpd_hierarchy_debug_counter < 20)
+                        {
+                            KRATOS_INFO("DPD-WALL-HIERARCHY")
+                                << "particle=" << p_sphere_i->Id()
+                                << " retained_DPD_walls="
+                                << p_sphere_i->mNeighbourRigidFaces.size()
+                                << " weights="
+                                << p_sphere_i->mContactConditionWeights.size()
+                                << " contact_types="
+                                << p_sphere_i->mContactConditionContactTypes.size()
+                                << std::endl;
+
+                            ++dpd_hierarchy_debug_counter;
+                        }
+                    }
+
+                    continue;
+                }
 
                 std::vector<DEMWall *> &neighbour_rigid_faces = p_sphere_i->mNeighbourRigidFaces;
                 std::vector<array_1d<double, 4>> &neighbour_weights = p_sphere_i->mContactConditionWeights;
@@ -2091,16 +2323,39 @@ namespace Kratos
 
                 for (unsigned int n = 0; n < neigh_size; n++)
                 {
+                    DEMWall *p_wall = neighbour_rigid_faces[n];
 
-                    if (ContactType_Array[n] != -1) // if(it is not a -1 contact neighbour, we copy it)
+                    if (p_wall == nullptr)
+                    {
+                        continue;
+                    }
+
+                    Properties &r_pair_properties =
+                        p_sphere_i->GetProperties().GetSubProperties(
+                            p_wall->GetProperties().Id());
+
+                    const bool is_dpd_wall_pair =
+                        r_pair_properties.Has(DPD_SMOOTHING_LENGTH) &&
+                        r_pair_properties.Has(DPD_CUTOFF_RADIUS) &&
+                        r_pair_properties.Has(DPD_CONSERVATIVE_COEFF) &&
+                        r_pair_properties.Has(DPD_DISSIPATIVE_COEFF_NORMAL) &&
+                        r_pair_properties.Has(DPD_DISSIPATIVE_COEFF_TANGENTIAL);
+
+                    /*
+                     * For ordinary DEM: retain only a real DEM contact candidate.
+                     *
+                     * For DPD wall interactions: retain the wall even if the ordinary
+                     * hierarchy marks it as -1. The DPDParticle wall override will
+                     * subsequently calculate true center-to-wall distance and apply
+                     * the real physical condition 2*d < rc.
+                     */
+                    if (ContactType_Array[n] != -1)
                     {
                         temporal_neigh.push_back(neighbour_rigid_faces[n]);
                         temporal_contact_weights.push_back(Weight_Array[n]);
                         temporal_contact_types.push_back(ContactType_Array[n]);
-
-                    } // if(it is not a -1 contact neighbour, we copy it)
-
-                } // loop over temporal neighbours
+                    }
+                }
 
                 // swap
 

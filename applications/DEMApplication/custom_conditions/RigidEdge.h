@@ -69,7 +69,8 @@ public:
                                     array_1d<double, 4>& Weight,
                                     array_1d<double, 3>& edge_delta_disp_at_contact_point,
                                     array_1d<double, 3>& edge_velocity_at_contact_point,
-                                    int& ContactType) override;
+                                    int& ContactType,
+                                    const double SearchRadius) override;
 
     /**
      * Turn back information as a string.

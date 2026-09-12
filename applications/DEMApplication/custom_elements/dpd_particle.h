@@ -12,7 +12,7 @@ namespace Kratos
 
         using SphericParticle::SphericParticle;
 
-        Element::Pointer Create(IndexType NewId, NodesArrayType const& ThisNodes,
+        Element::Pointer Create(IndexType NewId, NodesArrayType const &ThisNodes,
                                 PropertiesType::Pointer pProperties) const override
         {
             return Kratos::make_intrusive<DPDParticle>(NewId, GetGeometry().Create(ThisNodes), pProperties);
@@ -21,20 +21,27 @@ namespace Kratos
         // Override the full ball-to-ball loop so DPD range forces fire for
         // ALL neighbours within r_cut, not only overlapping pairs.
         void ComputeBallToBallContactForceAndMoment(
-            ParticleDataBuffer& data_buffer,
-            const ProcessInfo& r_process_info,
-            array_1d<double, 3>& rElasticForce,
-            array_1d<double, 3>& rContactForce) override;
+            ParticleDataBuffer &data_buffer,
+            const ProcessInfo &r_process_info,
+            array_1d<double, 3> &rElasticForce,
+            array_1d<double, 3> &rContactForce) override;
 
         std::string Info() const override { return "DPDParticle"; }
+        
+        void ComputeBallToRigidFaceContactForceAndMoment(
+            ParticleDataBuffer &rDataBuffer,
+            array_1d<double, 3> &rElasticForce,
+            array_1d<double, 3> &rContactForce,
+            array_1d<double, 3> &rRigidElementForce,
+            const ProcessInfo &rProcessInfo) override;
 
     protected:
         friend class Serializer;
-        void save(Serializer& rSerializer) const override
+        void save(Serializer &rSerializer) const override
         {
             KRATOS_SERIALIZE_SAVE_BASE_CLASS(rSerializer, SphericParticle);
         }
-        void load(Serializer& rSerializer) override
+        void load(Serializer &rSerializer) override
         {
             KRATOS_SERIALIZE_LOAD_BASE_CLASS(rSerializer, SphericParticle);
         }
