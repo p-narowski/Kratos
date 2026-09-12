@@ -1605,10 +1605,10 @@ namespace Kratos
         const int number_of_elements = static_cast<int>(
             r_model_part.GetCommunicator().LocalMesh().ElementsArray().end() - r_model_part.GetCommunicator().LocalMesh().ElementsArray().begin());
 
-        KRATOS_INFO("DEM") << "SearchNeighbours: number_of_particles = "
-                           << number_of_particles
-                           << ", number_of_elements = "
-                           << number_of_elements << std::endl;
+        // KRATOS_INFO("DEM") << "SearchNeighbours: number_of_particles = "
+        //                    << number_of_particles
+        //                    << ", number_of_elements = "
+        //                    << number_of_elements << std::endl;
 
         KRATOS_ERROR_IF(number_of_particles != number_of_elements)
             << "SearchNeighbours invariants violated: mListOfSphericParticles.size() = "
@@ -1690,7 +1690,7 @@ namespace Kratos
             this->GetResultsDistances()[i].clear();
         }
 
-        KRATOS_INFO("DEM") << "SearchNeighbours finished first neighbour build loop." << std::endl;
+        // KRATOS_INFO("DEM") << "SearchNeighbours finished first neighbour build loop." << std::endl;
 
 // the next loop ensures consistency in neighbourhood (if A is neighbour of B, B must be neighbour of A)
 #pragma omp parallel for schedule(dynamic, 100)

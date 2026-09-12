@@ -218,13 +218,13 @@ namespace Kratos
                 std::sqrt(ViscoDampingLocalContactForce[0] * ViscoDampingLocalContactForce[0] +
                           ViscoDampingLocalContactForce[1] * ViscoDampingLocalContactForce[1] +
                           ViscoDampingLocalContactForce[2] * ViscoDampingLocalContactForce[2]);
-            std::cout << "[DPD-FEM-DBG] "
-                      << "indent=" << indentation
-                      << " r=" << r << " rc=" << rc
-                      << " wc=" << wc << " wd=" << wd
-                      << " |Fel|=" << fel << " |Fvis|=" << fvis
-                      << " vrel=(" << vrel_t0 << "," << vrel_t1 << "," << vrel_n << ")"
-                      << std::endl;
+            // std::cout << "[DPD-FEM-DBG] "
+            //           << "indent=" << indentation
+            //           << " r=" << r << " rc=" << rc
+            //           << " wc=" << wc << " wd=" << wd
+            //           << " |Fel|=" << fel << " |Fvis|=" << fvis
+            //           << " vrel=(" << vrel_t0 << "," << vrel_t1 << "," << vrel_n << ")"
+            //           << std::endl;
             ++fem_dbg_count;
         }
         static std::atomic<int> wall_call_count{0};
@@ -320,12 +320,12 @@ namespace Kratos
                 std::sqrt(ViscoDampingLocalContactForce[0] * ViscoDampingLocalContactForce[0] +
                           ViscoDampingLocalContactForce[1] * ViscoDampingLocalContactForce[1] +
                           ViscoDampingLocalContactForce[2] * ViscoDampingLocalContactForce[2]);
-            std::cout << "[DPD-PP-DBG] "
-                      << "r=" << r << " rc=" << rc
-                      << " wc=" << wc << " wd=" << wd
-                      << " |Fel|=" << fel << " |Fvis|=" << fvis
-                      << " vrel=(" << LocalRelVel[0] << "," << LocalRelVel[1] << "," << LocalRelVel[2] << ")"
-                      << std::endl;
+            // std::cout << "[DPD-PP-DBG] "
+            //           << "r=" << r << " rc=" << rc
+            //           << " wc=" << wc << " wd=" << wd
+            //           << " |Fel|=" << fel << " |Fvis|=" << fvis
+            //           << " vrel=(" << LocalRelVel[0] << "," << LocalRelVel[1] << "," << LocalRelVel[2] << ")"
+            //           << std::endl;
             ++pp_dbg_count;
         }
 

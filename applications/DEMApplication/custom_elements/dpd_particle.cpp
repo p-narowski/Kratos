@@ -1,4 +1,5 @@
 #include "custom_elements/dpd_particle.h"
+#include "custom_elements/suspended_particle.h"
 
 #include "DEM_application_variables.h"
 #include "custom_utilities/GeometryFunctions.h"
@@ -402,25 +403,25 @@ namespace Kratos
                 contact_type,
                 wall_candidate_radius);
 
-#pragma omp critical(DPDWallGeometryDebug)
-            {
-                if (dpd_wall_geometry_debug_counter < 40)
-                {
-                    KRATOS_INFO("DPD-WALL-GEOMETRY")
-                        << "particle=" << Id()
-                        << " wall=" << p_wall->Id()
-                        << " contact_type=" << contact_type
-                        << " d=" << distance_to_wall
-                        << " candidate_radius="
-                        << wall_candidate_radius
-                        << " rc=" << rc
-                        << " rc_over_2="
-                        << dpd_wall_range
-                        << std::endl;
+// #pragma omp critical(DPDWallGeometryDebug)
+//             {
+//                 if (dpd_wall_geometry_debug_counter < 40)
+//                 {
+//                     KRATOS_INFO("DPD-WALL-GEOMETRY")
+//                         << "particle=" << Id()
+//                         << " wall=" << p_wall->Id()
+//                         << " contact_type=" << contact_type
+//                         << " d=" << distance_to_wall
+//                         << " candidate_radius="
+//                         << wall_candidate_radius
+//                         << " rc=" << rc
+//                         << " rc_over_2="
+//                         << dpd_wall_range
+//                         << std::endl;
 
-                    ++dpd_wall_geometry_debug_counter;
-                }
-            }
+//                     ++dpd_wall_geometry_debug_counter;
+//                 }
+//             }
 
             if (contact_type != 1 &&
                 contact_type != 2 &&
@@ -447,25 +448,25 @@ namespace Kratos
                 << p_wall->Id()
                 << std::endl;
 
-#pragma omp critical(DPDWallLawDebug)
-            {
-                if (dpd_wall_law_debug_counter < 20)
-                {
-                    KRATOS_INFO("DPD-WALL-LAW")
-                        << "particle=" << Id()
-                        << " wall=" << p_wall->Id()
-                        << " particle_property="
-                        << GetProperties().Id()
-                        << " wall_property="
-                        << p_wall->GetProperties().Id()
-                        << " law_type="
-                        << mDiscontinuumConstitutiveLaw
-                               ->GetTypeOfLaw()
-                        << std::endl;
+// #pragma omp critical(DPDWallLawDebug)
+//             {
+//                 if (dpd_wall_law_debug_counter < 20)
+//                 {
+//                     KRATOS_INFO("DPD-WALL-LAW")
+//                         << "particle=" << Id()
+//                         << " wall=" << p_wall->Id()
+//                         << " particle_property="
+//                         << GetProperties().Id()
+//                         << " wall_property="
+//                         << p_wall->GetProperties().Id()
+//                         << " law_type="
+//                         << mDiscontinuumConstitutiveLaw
+//                                ->GetTypeOfLaw()
+//                         << std::endl;
 
-                    ++dpd_wall_law_debug_counter;
-                }
-            }
+//                     ++dpd_wall_law_debug_counter;
+//                 }
+//             }
 
             if (mDiscontinuumConstitutiveLaw->GetTypeOfLaw() !=
                 "DEM_DPD_SPH_LIKE")
@@ -535,22 +536,22 @@ namespace Kratos
              * Therefore this message must appear if this source and this code
              * path are actually being executed.
              */
-            if (Id() == 501 && p_wall->Id() == 3)
-            {
-                KRATOS_INFO("DPD-FEM-CALLSITE-TEST")
-                    << "particle=" << Id()
-                    << " wall=" << p_wall->Id()
-                    << " contact_type=" << contact_type
-                    << " d=" << distance_to_wall
-                    << " indentation=" << indentation
-                    << " r_ghost=" << 2.0 * distance_to_wall
-                    << " rc=" << rc
-                    << " local_v=("
-                    << local_relative_velocity[0] << ", "
-                    << local_relative_velocity[1] << ", "
-                    << local_relative_velocity[2] << ")"
-                    << std::endl;
-            }
+            // if (Id() == 501 && p_wall->Id() == 3)
+            // {
+            //     KRATOS_INFO("DPD-FEM-CALLSITE-TEST")
+            //         << "particle=" << Id()
+            //         << " wall=" << p_wall->Id()
+            //         << " contact_type=" << contact_type
+            //         << " d=" << distance_to_wall
+            //         << " indentation=" << indentation
+            //         << " r_ghost=" << 2.0 * distance_to_wall
+            //         << " rc=" << rc
+            //         << " local_v=("
+            //         << local_relative_velocity[0] << ", "
+            //         << local_relative_velocity[1] << ", "
+            //         << local_relative_velocity[2] << ")"
+            //         << std::endl;
+            // }
 
             mDiscontinuumConstitutiveLaw->CalculateForcesWithFEM(
                 rProcessInfo,
@@ -601,26 +602,26 @@ namespace Kratos
             noalias(rRigidElementForce) -=
                 global_total_force;
 
-#pragma omp critical(DPDWallForceDebug)
-            {
-                if (wall_debug_counter < 10)
-                {
-                    KRATOS_INFO("DPD-WALL")
-                        << "particle=" << Id()
-                        << " wall=" << p_wall->Id()
-                        << " d=" << distance_to_wall
-                        << " 2d="
-                        << 2.0 * distance_to_wall
-                        << " rc=" << rc
-                        << " F=("
-                        << global_total_force[0] << ", "
-                        << global_total_force[1] << ", "
-                        << global_total_force[2] << ")"
-                        << std::endl;
+// #pragma omp critical(DPDWallForceDebug)
+//             {
+//                 if (wall_debug_counter < 10)
+//                 {
+//                     KRATOS_INFO("DPD-WALL")
+//                         << "particle=" << Id()
+//                         << " wall=" << p_wall->Id()
+//                         << " d=" << distance_to_wall
+//                         << " 2d="
+//                         << 2.0 * distance_to_wall
+//                         << " rc=" << rc
+//                         << " F=("
+//                         << global_total_force[0] << ", "
+//                         << global_total_force[1] << ", "
+//                         << global_total_force[2] << ")"
+//                         << std::endl;
 
-                    ++wall_debug_counter;
-                }
-            }
+//                     ++wall_debug_counter;
+//                 }
+//             }
         }
     }
 
