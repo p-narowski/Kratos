@@ -2,7 +2,6 @@
 
 #include "custom_elements/dpd_particle.h"
 #include "DEM_application_variables.h"
-#include "custom_utilities/GeometryFunctions.h"
 
 #include <cmath>
 
@@ -46,16 +45,16 @@ void BuildDPDLocalBasis(
     tangent_0.clear();
 
     tangent_0[0] =
-        reference[1] * normal[2] -
-        reference[2] * normal[1];
+        reference[1] * normal[2]
+        - reference[2] * normal[1];
 
     tangent_0[1] =
-        reference[2] * normal[0] -
-        reference[0] * normal[2];
+        reference[2] * normal[0]
+        - reference[0] * normal[2];
 
     tangent_0[2] =
-        reference[0] * normal[1] -
-        reference[1] * normal[0];
+        reference[0] * normal[1]
+        - reference[1] * normal[0];
 
     const double tangent_0_norm = norm_2(tangent_0);
 
@@ -71,16 +70,16 @@ void BuildDPDLocalBasis(
     tangent_1.clear();
 
     tangent_1[0] =
-        normal[1] * tangent_0[2] -
-        normal[2] * tangent_0[1];
+        normal[1] * tangent_0[2]
+        - normal[2] * tangent_0[1];
 
     tangent_1[1] =
-        normal[2] * tangent_0[0] -
-        normal[0] * tangent_0[2];
+        normal[2] * tangent_0[0]
+        - normal[0] * tangent_0[2];
 
     tangent_1[2] =
-        normal[0] * tangent_0[1] -
-        normal[1] * tangent_0[0];
+        normal[0] * tangent_0[1]
+        - normal[1] * tangent_0[0];
 
     rLocalCoordSystem[0][0] = tangent_0[0];
     rLocalCoordSystem[0][1] = tangent_0[1];
@@ -100,7 +99,9 @@ void ProjectGlobalToLocal(
     const double rLocalCoordSystem[3][3],
     double rLocalVector[3])
 {
-    for (int local_direction = 0; local_direction < 3; ++local_direction) {
+    for (int local_direction = 0;
+         local_direction < 3;
+         ++local_direction) {
         rLocalVector[local_direction] = 0.0;
 
         for (int global_direction = 0;
@@ -120,7 +121,9 @@ void ProjectLocalToGlobal(
 {
     rGlobalVector.clear();
 
-    for (int local_direction = 0; local_direction < 3; ++local_direction) {
+    for (int local_direction = 0;
+         local_direction < 3;
+         ++local_direction) {
         for (int global_direction = 0;
              global_direction < 3;
              ++global_direction) {
@@ -142,33 +145,35 @@ bool HasDPDProperties(const Properties& rContactProperties)
 
 } // unnamed namespace
 
-void SuspendedParticle::ComputeBallToBallContactForceAndMoment(
-    ParticleDataBuffer& rDataBuffer,
-    const ProcessInfo& rProcessInfo,
-    array_1d<double, 3>& rElasticForce,
-    array_1d<double, 3>& rContactForce)
+bool SuspendedParticle::ShouldComputeDEMContactWith(
+    const SphericParticle* pNeighbour) const
 {
+    return dynamic_cast<const DPDParticle*>(pNeighbour) == nullptr;
+}
+
+void SuspendedParticle::ComputeAdditionalForces(
+    array_1d<double, 3>& rAdditionalForce,
+    array_1d<double, 3>& rAdditionalMoment,
+    const ProcessInfo& rProcessInfo,
+    const array_1d<double, 3>& rGravity)
+{
+    KRATOS_TRY
+
     /*
-     * The normal DEM implementation must still process:
-     *
-     * - SuspendedParticle--SuspendedParticle,
-     * - SuspendedParticle--ordinary SphericParticle,
-     * - all other non-DPD spherical DEM elements.
-     *
-     * It cannot be called directly after processing DPD neighbours,
-     * because it would also apply ordinary DEM contact to the DPD neighbours.
-     *
-     * Therefore this implementation reproduces the DPDParticle range-force
-     * loop only for DPD neighbours. The standard DEM loop is preserved by
-     * temporarily removing DPD neighbours, calling the base method, then
-     * restoring the original neighbour list.
+     * Preserve gravity and EXTERNAL_APPLIED_FORCE, including the force
+     * assigned by MainKratos.py to the large suspended particle.
      */
+    SphericParticle::ComputeAdditionalForces(
+        rAdditionalForce,
+        rAdditionalMoment,
+        rProcessInfo,
+        rGravity);
 
-    std::vector<SphericParticle*> dpd_neighbours;
-    std::vector<std::size_t> dpd_neighbour_indices;
+    const array_1d<double, 3>& r_my_position =
+        GetGeometry()[0].Coordinates();
 
-    dpd_neighbours.reserve(mNeighbourElements.size());
-    dpd_neighbour_indices.reserve(mNeighbourElements.size());
+    const array_1d<double, 3>& r_my_velocity =
+        GetGeometry()[0].FastGetSolutionStepValue(VELOCITY);
 
     for (std::size_t i = 0; i < mNeighbourElements.size(); ++i) {
         SphericParticle* p_neighbour = mNeighbourElements[i];
@@ -177,46 +182,6 @@ void SuspendedParticle::ComputeBallToBallContactForceAndMoment(
             continue;
         }
 
-        if (dynamic_cast<DPDParticle*>(p_neighbour) != nullptr) {
-            dpd_neighbours.push_back(p_neighbour);
-            dpd_neighbour_indices.push_back(i);
-            mNeighbourElements[i] = nullptr;
-        }
-    }
-
-    /*
-     * This executes unchanged DEM contact for:
-     * Suspended--Suspended and Suspended--SphericParticle.
-     */
-    SphericParticle::ComputeBallToBallContactForceAndMoment(
-        rDataBuffer,
-        rProcessInfo,
-        rElasticForce,
-        rContactForce);
-
-    /*
-     * Restore the exact original neighbour vector before returning.
-     * Neighbour-list integrity is important for history, search and output.
-     */
-    for (std::size_t k = 0; k < dpd_neighbours.size(); ++k) {
-        mNeighbourElements[dpd_neighbour_indices[k]] = dpd_neighbours[k];
-    }
-
-    const array_1d<double, 3>& r_my_position =
-        GetGeometry()[0].Coordinates();
-
-    const array_1d<double, 3>& r_my_velocity =
-        GetGeometry()[0].FastGetSolutionStepValue(VELOCITY);
-
-    /*
-     * Apply DPD interaction only to SuspendedParticle--DPDParticle pairs.
-     *
-     * The force is accumulated only on this suspended particle's
-     * rElasticForce/rContactForce. This follows the existing DEM/DPD
-     * force assembly convention in your DPDParticle implementation:
-     * each element computes its own force contribution during its own RHS.
-     */
-    for (SphericParticle* p_neighbour : dpd_neighbours) {
         DPDParticle* p_dpd_neighbour =
             dynamic_cast<DPDParticle*>(p_neighbour);
 
@@ -231,9 +196,6 @@ void SuspendedParticle::ComputeBallToBallContactForceAndMoment(
         if (!HasDPDProperties(r_contact_properties)) {
             continue;
         }
-
-        const double rc =
-            r_contact_properties[DPD_CUTOFF_RADIUS];
 
         mDiscontinuumConstitutiveLaw =
             pCloneDiscontinuumConstitutiveLawWithNeighbour(
@@ -250,6 +212,9 @@ void SuspendedParticle::ComputeBallToBallContactForceAndMoment(
             != "DEM_DPD_SPH_LIKE") {
             continue;
         }
+
+        const double rc =
+            r_contact_properties[DPD_CUTOFF_RADIUS];
 
         array_1d<double, 3> r_ij;
         r_ij.clear();
@@ -301,10 +266,6 @@ void SuspendedParticle::ComputeBallToBallContactForceAndMoment(
             local_coord_system,
             local_relative_velocity);
 
-        /*
-         * DPD indentation is not geometric sphere overlap.
-         * It is positive over the DPD interaction range.
-         */
         const double dpd_indentation = rc - distance;
 
         double old_local_elastic_contact_force[3] = {
@@ -358,33 +319,15 @@ void SuspendedParticle::ComputeBallToBallContactForceAndMoment(
             local_coord_system,
             global_viscous_force);
 
-        array_1d<double, 3> global_pair_force(global_elastic_force);
+        array_1d<double, 3> global_dpd_force(
+            global_elastic_force);
 
-        noalias(global_pair_force) += global_viscous_force;
+        noalias(global_dpd_force) += global_viscous_force;
 
-        noalias(rElasticForce) += global_elastic_force;
-
-        noalias(rContactForce) += global_pair_force;
+        noalias(rAdditionalForce) += global_dpd_force;
     }
-}
 
-void SuspendedParticle::ComputeBallToRigidFaceContactForceAndMoment(
-    ParticleDataBuffer& rDataBuffer,
-    array_1d<double, 3>& rElasticForce,
-    array_1d<double, 3>& rContactForce,
-    array_1d<double, 3>& rRigidElementForce,
-    const ProcessInfo& rProcessInfo)
-{
-    /*
-     * Suspended particles remain ordinary DEM particles against
-     * the screw, barrel and all other rigid FEM walls.
-     */
-    SphericParticle::ComputeBallToRigidFaceContactForceAndMoment(
-        rDataBuffer,
-        rElasticForce,
-        rContactForce,
-        rRigidElementForce,
-        rProcessInfo);
+    KRATOS_CATCH("")
 }
 
 } // namespace Kratos

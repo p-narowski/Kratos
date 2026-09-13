@@ -6,26 +6,21 @@
 namespace Kratos
 {
 
+class DPDParticle;
+
 /**
  * @class SuspendedParticle
  * @ingroup DEMApplication
- * @brief DEM solid particle with DPD interaction only against DPDParticle neighbours.
+ * @brief DEM solid with DPD-only interaction against DPDParticle.
  *
- * Pair behavior:
- * - SuspendedParticle--DPDParticle:
- *     DPD range interaction, through a DEM_DPD_SPH_LIKE constitutive law.
- * - SuspendedParticle--SuspendedParticle:
- *     Ordinary SphericParticle DEM contact.
- * - SuspendedParticle--SphericParticle:
- *     Ordinary SphericParticle DEM contact.
- * - SuspendedParticle--rigid wall:
- *     Ordinary SphericParticle DEM wall contact.
- *
- * The DPD cross force is evaluated here, not by DPDParticle. Therefore
- * DPDParticle::ComputeBallToBallContactForceAndMoment must skip
- * SuspendedParticle neighbours.
+ * Pair law:
+ * - SuspendedParticle -- DPDParticle: DPD only, no base DEM contact.
+ * - SuspendedParticle -- SuspendedParticle: ordinary DEM.
+ * - SuspendedParticle -- SphericParticle: ordinary DEM.
+ * - SuspendedParticle -- wall: ordinary DEM.
  */
-class KRATOS_API(DEM_APPLICATION) SuspendedParticle : public SphericParticle
+class KRATOS_API(DEM_APPLICATION) SuspendedParticle
+    : public SphericParticle
 {
 public:
     KRATOS_CLASS_POINTER_DEFINITION(SuspendedParticle);
@@ -69,28 +64,11 @@ public:
             pProperties);
     }
 
-    /**
-     * @brief Hybrid particle--particle interaction loop.
-     *
-     * DPDParticle neighbours are handled with a DPD law over DPD_CUTOFF_RADIUS.
-     * Every other neighbour is processed by the original SphericParticle
-     * DEM contact implementation.
-     */
-    void ComputeBallToBallContactForceAndMoment(
-        ParticleDataBuffer& rDataBuffer,
+    void ComputeAdditionalForces(
+        array_1d<double, 3>& rAdditionalForce,
+        array_1d<double, 3>& rAdditionalMoment,
         const ProcessInfo& rProcessInfo,
-        array_1d<double, 3>& rElasticForce,
-        array_1d<double, 3>& rContactForce) override;
-
-    /**
-     * @brief Keep the normal DEM sphere--wall interaction unchanged.
-     */
-    void ComputeBallToRigidFaceContactForceAndMoment(
-        ParticleDataBuffer& rDataBuffer,
-        array_1d<double, 3>& rElasticForce,
-        array_1d<double, 3>& rContactForce,
-        array_1d<double, 3>& rRigidElementForce,
-        const ProcessInfo& rProcessInfo) override;
+        const array_1d<double, 3>& rGravity) override;
 
     std::string Info() const override
     {
@@ -98,16 +76,29 @@ public:
     }
 
 protected:
+    /**
+     * @brief Returns false only for a DPDParticle neighbour.
+     *
+     * The base SphericParticle loop uses this method immediately before
+     * its normal DEM contact-law/historical-force processing.
+     */
+    bool ShouldComputeDEMContactWith(
+        const SphericParticle* pNeighbour) const override;
+
     friend class Serializer;
 
     void save(Serializer& rSerializer) const override
     {
-        KRATOS_SERIALIZE_SAVE_BASE_CLASS(rSerializer, SphericParticle);
+        KRATOS_SERIALIZE_SAVE_BASE_CLASS(
+            rSerializer,
+            SphericParticle);
     }
 
     void load(Serializer& rSerializer) override
     {
-        KRATOS_SERIALIZE_LOAD_BASE_CLASS(rSerializer, SphericParticle);
+        KRATOS_SERIALIZE_LOAD_BASE_CLASS(
+            rSerializer,
+            SphericParticle);
     }
 };
 

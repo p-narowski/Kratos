@@ -134,6 +134,15 @@ namespace Kratos
                                                               double neighbour_coors[3]);
 
         virtual bool CalculateRelativePositionsOrSkipContact(ParticleDataBuffer &data_buffer);
+        /**
+         * @brief Allows a derived class to suppress standard DEM contact
+         * for a selected particle-particle pair.
+         *
+         * Default behavior: all particle neighbours use the normal DEM
+         * ball-to-ball contact implementation.
+         */
+        virtual bool ShouldComputeDEMContactWith(
+            const SphericParticle *pNeighbour) const;
 
         void Initialize(const ProcessInfo &r_process_info) override;
         virtual void MemberDeclarationFirstStep(const ProcessInfo &r_process_info);

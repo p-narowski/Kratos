@@ -889,7 +889,7 @@ namespace Kratos
         for (int i = 0; data_buffer.SetNextNeighbourOrExit(i); ++i)
         {
 
-            if (CalculateRelativePositionsOrSkipContact(data_buffer))
+            if (CalculateRelativePositionsOrSkipContact(data_buffer) && ShouldComputeDEMContactWith(data_buffer.mpOtherParticle))
             {
                 DEM_SET_COMPONENTS_TO_ZERO_3x3(data_buffer.mLocalCoordSystem)
                     DEM_SET_COMPONENTS_TO_ZERO_3x3(data_buffer.mOldLocalCoordSystem) double DeltDisp[3] = {0.0};
@@ -2448,6 +2448,11 @@ namespace Kratos
         return data_buffer.mIndentation > 0.0;
     }
 
+    bool SphericParticle::ShouldComputeDEMContactWith(
+        const SphericParticle *) const
+    {
+        return true;
+    }
     void SphericParticle::RelativeDisplacementAndVelocityOfContactPointDueToOtherReasons(const ProcessInfo &r_process_info,
                                                                                          double DeltDisp[3], // IN GLOBAL AXES
                                                                                          double RelVel[3],   // IN GLOBAL AXES
