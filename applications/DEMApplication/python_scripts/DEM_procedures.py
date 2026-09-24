@@ -9,7 +9,6 @@ from KratosMultiphysics import *
 from KratosMultiphysics.DEMApplication import *
 import KratosMultiphysics.DEMApplication.DEM_material_test_script as DEM_material_test_script
 import KratosMultiphysics.DEMApplication.triaxial2d_test as triaxial2d_test
-from applications.HDF5Application.python_scripts.core.operations import model_part
 
 def Flush(a):
     a.flush()

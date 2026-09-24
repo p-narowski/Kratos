@@ -569,19 +569,53 @@ namespace Kratos
 
     void ExplicitSolverStrategy::GetForce()
     {
-
         KRATOS_TRY
 
-        ProcessInfo &r_process_info = GetModelPart().GetProcessInfo();
-        double dt = r_process_info[DELTA_TIME];
-        const array_1d<double, 3> &gravity = r_process_info[GRAVITY];
+        ModelPart &r_model_part = GetModelPart();
 
-        const int number_of_particles = (int)mListOfSphericParticles.size();
+        ProcessInfo &r_process_info =
+            r_model_part.GetProcessInfo();
+
+        const double dt =
+            r_process_info[DELTA_TIME];
+
+        const array_1d<double, 3> &gravity =
+            r_process_info[GRAVITY];
+
+        /*
+         * Reset the per-timestep DEM-DPD coupling diagnostics before
+         * CalculateRightHandSide() starts assembling forces.
+         *
+         * These are diagnostic accumulators. They must not carry values
+         * over from a previous timestep.
+         */
+        NodesArrayType &r_nodes =
+            r_model_part.GetCommunicator().LocalMesh().Nodes();
+
+        block_for_each(
+            r_nodes,
+            [](ModelPart::NodeType &r_node)
+            {
+                noalias(
+                    r_node.FastGetSolutionStepValue(
+                        DPD_TO_DEM_COUPLING_FORCE)) = ZeroVector(3);
+
+                noalias(
+                    r_node.FastGetSolutionStepValue(
+                        DEM_TO_DPD_COUPLING_FORCE)) = ZeroVector(3);
+            });
+
+        const int number_of_particles =
+            static_cast<int>(
+                mListOfSphericParticles.size());
 
 #pragma omp parallel for schedule(dynamic, 100)
-        for (int i = 0; i < number_of_particles; i++)
+        for (int i = 0; i < number_of_particles; ++i)
         {
-            mListOfSphericParticles[i]->CalculateRightHandSide(r_process_info, dt, gravity);
+            mListOfSphericParticles[i]->CalculateRightHandSide(
+                r_process_info,
+                dt,
+                gravity);
         }
 
         KRATOS_CATCH("")
@@ -2448,10 +2482,20 @@ namespace Kratos
         r_model_part.GetCommunicator().SynchronizeNodalSolutionStepsData();
     }
 
-    void ExplicitSolverStrategy::SynchronizeRHS(ModelPart &r_model_part)
+    void ExplicitSolverStrategy::SynchronizeRHS(
+        ModelPart &r_model_part)
     {
-        r_model_part.GetCommunicator().SynchronizeVariable(TOTAL_FORCES);
-        r_model_part.GetCommunicator().SynchronizeVariable(PARTICLE_MOMENT);
+        r_model_part.GetCommunicator().SynchronizeVariable(
+            TOTAL_FORCES);
+
+        r_model_part.GetCommunicator().SynchronizeVariable(
+            DPD_TO_DEM_COUPLING_FORCE);
+
+        r_model_part.GetCommunicator().SynchronizeVariable(
+            DEM_TO_DPD_COUPLING_FORCE);
+
+        r_model_part.GetCommunicator().SynchronizeVariable(
+            PARTICLE_MOMENT);
     }
 
     double ExplicitSolverStrategy::ComputeCoordinationNumber(double &standard_dev)

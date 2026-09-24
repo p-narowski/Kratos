@@ -337,20 +337,37 @@ namespace Kratos
 
             noalias(global_dpd_force) += global_viscous_force;
 
+            // Apply the DPD-to-suspended-particle force. This is the actual
+            // force contribution to the suspended particle's integration step.
             noalias(rAdditionalForce) += global_dpd_force;
 
-            //auto &r_suspended_node = this->GetGeometry()[0];
-            //auto &r_dpd_node = p_dpd_neighbour->GetGeometry()[0];
+            auto &r_suspended_node = this->GetGeometry()[0];
+            auto &r_dpd_node = p_dpd_neighbour->GetGeometry()[0];
 
-            // Actual DPD force applied to this suspended particle.
-            //noalias(
-            //    r_suspended_node.FastGetSolutionStepValue(
-            //        DPD_TO_DEM_COUPLING_FORCE)) += global_dpd_force;
+            // Record the exact coupling force applied to the suspended particle.
+            // The node can be visited in parallel, so protect the update.
+            r_suspended_node.SetLock();
 
-            // Equal-and-opposite reaction delivered to the DPD particle.
-            //noalias(
-            //    r_dpd_node.FastGetSolutionStepValue(
-            //        DEM_TO_DPD_COUPLING_FORCE)) -= global_dpd_force;
+            noalias(
+                r_suspended_node.FastGetSolutionStepValue(
+                    DPD_TO_DEM_COUPLING_FORCE)) += global_dpd_force;
+
+            r_suspended_node.UnSetLock();
+
+            // Apply and record the equal-and-opposite force to the DPD neighbour.
+            // A DPD node can be shared by several suspended-particle interactions,
+            // so both updates must occur while holding this node's lock.
+            r_dpd_node.SetLock();
+
+            noalias(
+                r_dpd_node.FastGetSolutionStepValue(
+                    TOTAL_FORCES)) -= global_dpd_force;
+
+            noalias(
+                r_dpd_node.FastGetSolutionStepValue(
+                    DEM_TO_DPD_COUPLING_FORCE)) -= global_dpd_force;
+
+            r_dpd_node.UnSetLock();
         }
 
         KRATOS_CATCH("")
