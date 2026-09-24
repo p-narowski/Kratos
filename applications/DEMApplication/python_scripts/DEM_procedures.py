@@ -9,6 +9,7 @@ from KratosMultiphysics import *
 from KratosMultiphysics.DEMApplication import *
 import KratosMultiphysics.DEMApplication.DEM_material_test_script as DEM_material_test_script
 import KratosMultiphysics.DEMApplication.triaxial2d_test as triaxial2d_test
+from applications.HDF5Application.python_scripts.core.operations import model_part
 
 def Flush(a):
     a.flush()
@@ -442,6 +443,8 @@ class Procedures():
         model_part.AddNodalSolutionStepVariable(DISPLACEMENT)
         model_part.AddNodalSolutionStepVariable(DELTA_DISPLACEMENT)
         model_part.AddNodalSolutionStepVariable(TOTAL_FORCES)
+        model_part.AddNodalSolutionStepVariable(DPD_TO_DEM_COUPLING_FORCE)
+        model_part.AddNodalSolutionStepVariable(DEM_TO_DPD_COUPLING_FORCE)
         model_part.AddNodalSolutionStepVariable(CONTACT_FORCES)
 
     def AddSpheresVariables(self, model_part, DEM_parameters):
@@ -592,7 +595,7 @@ class Procedures():
         model_part.AddNodalSolutionStepVariable(PARTICLE_MOMENT)
         model_part.AddNodalSolutionStepVariable(EXTERNAL_APPLIED_FORCE)
         model_part.AddNodalSolutionStepVariable(EXTERNAL_APPLIED_MOMENT)
-
+        
         # PHYSICAL PROPERTIES
         model_part.AddNodalSolutionStepVariable(PRINCIPAL_MOMENTS_OF_INERTIA)
         model_part.AddNodalSolutionStepVariable(CLUSTER_VOLUME)
