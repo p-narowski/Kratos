@@ -2174,6 +2174,7 @@ namespace Kratos
                 p_sphere_i->mNeighbourRigidFaces.resize(0);
                 p_sphere_i->mNeighbourNonContactRigidFaces.resize(0);
                 p_sphere_i->mContactConditionWeights.resize(0);
+                p_sphere_i->mContactConditionContactTypes.resize(0);
 
                 Distance_Array.clear();
                 Normal_Array.clear();
