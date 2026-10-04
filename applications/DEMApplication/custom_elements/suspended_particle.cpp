@@ -229,8 +229,20 @@ namespace Kratos
                 continue;
             }
 
+            // DPD cutoff radius for this material pair
             const double rc =
                 r_contact_properties[DPD_CUTOFF_RADIUS];
+
+            // Suspended DEM radius is the larger of the two radii.
+            // In your setup, this->GetRadius() is the DEM sphere.
+            const double dem_radius = std::max(
+                GetRadius(),
+                p_dpd_neighbour->GetRadius());
+
+            // Center-based cutoff consistent with DEM_DPD_DRAG:
+            //   d_s = distance - R_dem
+            //   active when d_s < rc  -> distance < R_dem + rc
+            const double pair_cutoff = dem_radius + rc;
 
             array_1d<double, 3> r_ij;
             r_ij.clear();
@@ -244,7 +256,7 @@ namespace Kratos
 
             const double distance = norm_2(r_ij);
 
-            if (distance <= 1.0e-12 || distance >= rc)
+            if (distance <= 1.0e-12 || distance >= pair_cutoff)
             {
                 continue;
             }
@@ -283,7 +295,8 @@ namespace Kratos
                 local_coord_system,
                 local_relative_velocity);
 
-            const double dpd_indentation = rc - distance;
+            // Indentation used by the DPD law call-site (consistent with DPDParticle)
+            const double dpd_indentation = pair_cutoff - distance;
 
             double old_local_elastic_contact_force[3] = {
                 0.0, 0.0, 0.0};
