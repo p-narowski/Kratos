@@ -27,6 +27,8 @@ public:
 
     using SphericParticle::SphericParticle;
 
+    void Initialize(const ProcessInfo& rProcessInfo) override;
+
     SuspendedParticle() = default;
 
     SuspendedParticle(

@@ -1040,6 +1040,7 @@ namespace Kratos
         // DPD
         KRATOS_REGISTER_VARIABLE(DPD_SMOOTHING_LENGTH)
         KRATOS_REGISTER_VARIABLE(DPD_CUTOFF_RADIUS)
+        KRATOS_REGISTER_VARIABLE(DPD_DEM_SEARCH_CUTOFF)
         KRATOS_REGISTER_VARIABLE(DPD_CONSERVATIVE_COEFF)
         KRATOS_REGISTER_VARIABLE(DPD_DISSIPATIVE_COEFF)
         KRATOS_REGISTER_VARIABLE(DPD_DISSIPATIVE_COEFF_NORMAL)
@@ -1089,6 +1090,7 @@ namespace Kratos
         Serializer::Register("DEM_D_Linear_Simple_Coulomb", DEM_D_Linear_Simple_Coulomb());
         Serializer::Register("DEM_D_Linear_viscous_Coulomb", DEM_D_Linear_viscous_Coulomb());
         Serializer::Register("DEM_DPD_SPH_LIKE", DEM_DPD_SPH_LIKE());
+        Serializer::Register("DEM_DPD_DRAG", DEM_DPD_DRAG());
         Serializer::Register("DEM_D_Linear_viscous_Coulomb2D", DEM_D_Linear_viscous_Coulomb2D());
         Serializer::Register("DEM_D_Hertz_viscous_Coulomb", DEM_D_Hertz_viscous_Coulomb());
         Serializer::Register("DEM_D_Hertz_viscous_Coulomb2D", DEM_D_Hertz_viscous_Coulomb2D());

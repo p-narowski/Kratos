@@ -220,7 +220,11 @@ namespace Kratos
                 << p_dpd_neighbour->Id()
                 << std::endl;
 
-            if (mDiscontinuumConstitutiveLaw->GetTypeOfLaw() != "DEM_DPD_SPH_LIKE")
+            const std::string law_name =
+                mDiscontinuumConstitutiveLaw->GetTypeOfLaw();
+
+            if (
+                law_name != "DEM_DPD_SPH_LIKE" && law_name != "DEM_DPD_DRAG")
             {
                 continue;
             }
@@ -371,6 +375,52 @@ namespace Kratos
         }
 
         KRATOS_CATCH("")
+    }
+    void SuspendedParticle::Initialize(
+        const ProcessInfo &rProcessInfo)
+    {
+        SphericParticle::Initialize(rProcessInfo);
+
+        /*
+         * DPD_DEM_SEARCH_CUTOFF is a material-level broad-phase setting.
+         *
+         * It must be at least the maximum DPD_CUTOFF_RADIUS among every
+         * DPD--suspended material-pair relation that can act on this particle.
+         *
+         * It is intentionally distinct from DPD_CUTOFF_RADIUS:
+         *
+         * - DPD_DEM_SEARCH_CUTOFF:
+         *     top-level suspended-particle property;
+         *     used only to build an adequately large neighbour list.
+         *
+         * - DPD_CUTOFF_RADIUS:
+         *     pair-subproperty value;
+         *     used by DEM_DPD_DRAG to calculate the actual force.
+         */
+        const Properties &rProperties = GetProperties();
+
+        KRATOS_ERROR_IF_NOT(rProperties.Has(DPD_DEM_SEARCH_CUTOFF))
+            << "SuspendedParticle " << Id()
+            << " requires DPD_DEM_SEARCH_CUTOFF in its top-level properties."
+            << std::endl;
+
+        const double search_cutoff =
+            rProperties[DPD_DEM_SEARCH_CUTOFF];
+
+        KRATOS_ERROR_IF(search_cutoff <= 0.0)
+            << "SuspendedParticle " << Id()
+            << " has invalid DPD_DEM_SEARCH_CUTOFF = "
+            << search_cutoff << "."
+            << std::endl;
+
+        SetSearchRadius(GetRadius() + search_cutoff);
+
+        KRATOS_INFO("SUSPENDED_DPD_SEARCH")
+            << "particle=" << Id()
+            << " R_dem=" << GetRadius()
+            << " search_cutoff=" << search_cutoff
+            << " search_radius=" << GetSearchRadius()
+            << std::endl;
     }
 
 } // namespace Kratos

@@ -152,6 +152,16 @@ namespace Kratos
                    rContactProperties.Has(DPD_DISSIPATIVE_COEFF_TANGENTIAL);
         }
 
+        bool IsDPDPairLaw(const std::string &rLawName)
+        {
+            return rLawName == "DEM_DPD_SPH_LIKE" || rLawName == "DEM_DPD_DRAG";
+        }
+
+        bool IsDemDpdSurfaceLaw(const std::string &rLawName)
+        {
+            return rLawName == "DEM_DPD_DRAG";
+        }
+
     } // unnamed namespace
 
     void DPDParticle::ComputeBallToBallContactForceAndMoment(
@@ -169,6 +179,7 @@ namespace Kratos
         for (std::size_t i = 0; i < mNeighbourElements.size(); ++i)
         {
             SphericParticle *p_neighbour = mNeighbourElements[i];
+            
 
             if (p_neighbour == nullptr)
             {
@@ -198,8 +209,10 @@ namespace Kratos
                 << p_neighbour->Id()
                 << std::endl;
 
-            if (mDiscontinuumConstitutiveLaw->GetTypeOfLaw() !=
-                "DEM_DPD_SPH_LIKE")
+            const std::string law_name =
+                mDiscontinuumConstitutiveLaw->GetTypeOfLaw();
+
+            if (!IsDPDPairLaw(law_name))
             {
                 continue;
             }
@@ -219,10 +232,39 @@ namespace Kratos
                 rMyPosition[2] -
                 p_neighbour->GetGeometry()[0].Coordinates()[2];
 
-            const double distance =
-                norm_2(r_ij);
+            const double distance = norm_2(r_ij);
 
-            if (distance <= 1.0e-12 || distance >= rc)
+            if (distance <= 1.0e-12)
+            {
+                continue;
+            }
+
+            double pair_cutoff = rc;
+
+            if (IsDemDpdSurfaceLaw(law_name))
+            {
+                /*
+                 * DEM_DPD_DRAG uses:
+                 *
+                 * d_s = ||x_DPD - x_DEM|| - R_DEM
+                 *
+                 * and is active for d_s < rc. Therefore the pair must be considered
+                 * while its center-to-center separation is:
+                 *
+                 * distance < R_DEM + rc.
+                 *
+                 * The larger particle is assumed to be the suspended DEM particle.
+                 * This is valid for the current intended setup where
+                 * R_DEM >> R_DPD.
+                 */
+                const double dem_radius = std::max(
+                    GetRadius(),
+                    p_neighbour->GetRadius());
+
+                pair_cutoff = dem_radius + rc;
+            }
+
+            if (distance >= pair_cutoff)
             {
                 continue;
             }
@@ -263,8 +305,7 @@ namespace Kratos
                 local_coord_system,
                 local_relative_velocity);
 
-            const double dpd_indentation =
-                rc - distance;
+            const double dpd_indentation = pair_cutoff - distance;
 
             double old_local_elastic_contact_force[3] =
                 {0.0, 0.0, 0.0};
@@ -403,25 +444,25 @@ namespace Kratos
                 contact_type,
                 wall_candidate_radius);
 
-// #pragma omp critical(DPDWallGeometryDebug)
-//             {
-//                 if (dpd_wall_geometry_debug_counter < 40)
-//                 {
-//                     KRATOS_INFO("DPD-WALL-GEOMETRY")
-//                         << "particle=" << Id()
-//                         << " wall=" << p_wall->Id()
-//                         << " contact_type=" << contact_type
-//                         << " d=" << distance_to_wall
-//                         << " candidate_radius="
-//                         << wall_candidate_radius
-//                         << " rc=" << rc
-//                         << " rc_over_2="
-//                         << dpd_wall_range
-//                         << std::endl;
+            // #pragma omp critical(DPDWallGeometryDebug)
+            //             {
+            //                 if (dpd_wall_geometry_debug_counter < 40)
+            //                 {
+            //                     KRATOS_INFO("DPD-WALL-GEOMETRY")
+            //                         << "particle=" << Id()
+            //                         << " wall=" << p_wall->Id()
+            //                         << " contact_type=" << contact_type
+            //                         << " d=" << distance_to_wall
+            //                         << " candidate_radius="
+            //                         << wall_candidate_radius
+            //                         << " rc=" << rc
+            //                         << " rc_over_2="
+            //                         << dpd_wall_range
+            //                         << std::endl;
 
-//                     ++dpd_wall_geometry_debug_counter;
-//                 }
-//             }
+            //                     ++dpd_wall_geometry_debug_counter;
+            //                 }
+            //             }
 
             if (contact_type != 1 &&
                 contact_type != 2 &&
@@ -448,25 +489,25 @@ namespace Kratos
                 << p_wall->Id()
                 << std::endl;
 
-// #pragma omp critical(DPDWallLawDebug)
-//             {
-//                 if (dpd_wall_law_debug_counter < 20)
-//                 {
-//                     KRATOS_INFO("DPD-WALL-LAW")
-//                         << "particle=" << Id()
-//                         << " wall=" << p_wall->Id()
-//                         << " particle_property="
-//                         << GetProperties().Id()
-//                         << " wall_property="
-//                         << p_wall->GetProperties().Id()
-//                         << " law_type="
-//                         << mDiscontinuumConstitutiveLaw
-//                                ->GetTypeOfLaw()
-//                         << std::endl;
+            // #pragma omp critical(DPDWallLawDebug)
+            //             {
+            //                 if (dpd_wall_law_debug_counter < 20)
+            //                 {
+            //                     KRATOS_INFO("DPD-WALL-LAW")
+            //                         << "particle=" << Id()
+            //                         << " wall=" << p_wall->Id()
+            //                         << " particle_property="
+            //                         << GetProperties().Id()
+            //                         << " wall_property="
+            //                         << p_wall->GetProperties().Id()
+            //                         << " law_type="
+            //                         << mDiscontinuumConstitutiveLaw
+            //                                ->GetTypeOfLaw()
+            //                         << std::endl;
 
-//                     ++dpd_wall_law_debug_counter;
-//                 }
-//             }
+            //                     ++dpd_wall_law_debug_counter;
+            //                 }
+            //             }
 
             if (mDiscontinuumConstitutiveLaw->GetTypeOfLaw() !=
                 "DEM_DPD_SPH_LIKE")
@@ -602,26 +643,26 @@ namespace Kratos
             noalias(rRigidElementForce) -=
                 global_total_force;
 
-// #pragma omp critical(DPDWallForceDebug)
-//             {
-//                 if (wall_debug_counter < 10)
-//                 {
-//                     KRATOS_INFO("DPD-WALL")
-//                         << "particle=" << Id()
-//                         << " wall=" << p_wall->Id()
-//                         << " d=" << distance_to_wall
-//                         << " 2d="
-//                         << 2.0 * distance_to_wall
-//                         << " rc=" << rc
-//                         << " F=("
-//                         << global_total_force[0] << ", "
-//                         << global_total_force[1] << ", "
-//                         << global_total_force[2] << ")"
-//                         << std::endl;
+            // #pragma omp critical(DPDWallForceDebug)
+            //             {
+            //                 if (wall_debug_counter < 10)
+            //                 {
+            //                     KRATOS_INFO("DPD-WALL")
+            //                         << "particle=" << Id()
+            //                         << " wall=" << p_wall->Id()
+            //                         << " d=" << distance_to_wall
+            //                         << " 2d="
+            //                         << 2.0 * distance_to_wall
+            //                         << " rc=" << rc
+            //                         << " F=("
+            //                         << global_total_force[0] << ", "
+            //                         << global_total_force[1] << ", "
+            //                         << global_total_force[2] << ")"
+            //                         << std::endl;
 
-//                     ++wall_debug_counter;
-//                 }
-//             }
+            //                     ++wall_debug_counter;
+            //                 }
+            //             }
         }
     }
 
