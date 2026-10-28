@@ -179,9 +179,16 @@ namespace Kratos
         for (std::size_t i = 0; i < mNeighbourElements.size(); ++i)
         {
             SphericParticle *p_neighbour = mNeighbourElements[i];
-            
 
             if (p_neighbour == nullptr)
+            {
+                continue;
+            }
+
+            // SuspendedParticle::ComputeAdditionalForces already evaluates
+            // this mixed pair and applies its reaction to the DPD particle.
+            // Do not evaluate the same mixed interaction again here.
+            if (dynamic_cast<SuspendedParticle *>(p_neighbour) != nullptr)
             {
                 continue;
             }
