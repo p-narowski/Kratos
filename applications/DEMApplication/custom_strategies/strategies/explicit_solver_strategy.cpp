@@ -7,6 +7,7 @@
 #include "geometries/point_3d.h"
 #include "DEM_application_variables.h"
 #include "custom_elements/dpd_particle.h"
+#include "custom_elements/suspended_particle.h"
 
 #include <iostream>
 #include <fstream>
@@ -571,52 +572,77 @@ namespace Kratos
     {
         KRATOS_TRY
 
-        ModelPart &r_model_part = GetModelPart();
+        ModelPart& r_model_part = GetModelPart();
+        ProcessInfo& r_process_info = r_model_part.GetProcessInfo();
+        const double dt = r_process_info[DELTA_TIME];
+        const array_1d<double, 3>& gravity = r_process_info[GRAVITY];
+        const int number_of_particles =
+            static_cast<int>(mListOfSphericParticles.size());
 
-        ProcessInfo &r_process_info =
-            r_model_part.GetProcessInfo();
+        std::vector<SuspendedParticle*> suspended_particles;
+        for (auto* p_particle : mListOfSphericParticles)
+        {
+            auto* p_suspended = dynamic_cast<SuspendedParticle*>(p_particle);
+            if (p_suspended != nullptr)
+            {
+                KRATOS_ERROR_IF(p_suspended->Is(DEMFlags::BELONGS_TO_A_CLUSTER))
+                    << "Phased DEM-DPD coupling does not support clustered suspended particles."
+                    << std::endl;
+                suspended_particles.push_back(p_suspended);
+            }
+        }
 
-        const double dt =
-            r_process_info[DELTA_TIME];
+        KRATOS_ERROR_IF(!suspended_particles.empty() &&
+                       r_model_part.GetCommunicator().TotalProcesses() != 1)
+            << "Phased DEM-DPD coupling currently supports serial/OpenMP only, not MPI."
+            << std::endl;
 
-        const array_1d<double, 3> &gravity =
-            r_process_info[GRAVITY];
+        KRATOS_ERROR_IF(!suspended_particles.empty() &&
+                       r_process_info.Has(GLOBAL_DAMPING) &&
+                       r_process_info[GLOBAL_DAMPING] != 0.0)
+            << "Phased DEM-DPD coupling requires GLOBAL_DAMPING = 0. "
+            << "The coupling is merged after ordinary RHS damping."
+            << std::endl;
 
-        /*
-         * Reset the per-timestep DEM-DPD coupling diagnostics before
-         * CalculateRightHandSide() starts assembling forces.
-         *
-         * These are diagnostic accumulators. They must not carry values
-         * over from a previous timestep.
-         */
-        NodesArrayType &r_nodes =
+        NodesArrayType& r_nodes =
             r_model_part.GetCommunicator().LocalMesh().Nodes();
 
-        block_for_each(
-            r_nodes,
-            [](ModelPart::NodeType &r_node)
-            {
-                noalias(
-                    r_node.FastGetSolutionStepValue(
-                        DPD_TO_DEM_COUPLING_FORCE)) = ZeroVector(3);
+        // Phase 1: reset accumulators before either force-assembly phase.
+        block_for_each(r_nodes, [](ModelPart::NodeType& r_node)
+        {
+            r_node.FastGetSolutionStepValue(DPD_TO_DEM_COUPLING_FORCE).clear();
+            r_node.FastGetSolutionStepValue(DEM_TO_DPD_COUPLING_FORCE).clear();
+        });
 
-                noalias(
-                    r_node.FastGetSolutionStepValue(
-                        DEM_TO_DPD_COUPLING_FORCE)) = ZeroVector(3);
-            });
-
-        const int number_of_particles =
-            static_cast<int>(
-                mListOfSphericParticles.size());
-
+        // Phase 2: ordinary forces only; no cross-node TOTAL_FORCES writes.
 #pragma omp parallel for schedule(dynamic, 100)
         for (int i = 0; i < number_of_particles; ++i)
         {
             mListOfSphericParticles[i]->CalculateRightHandSide(
-                r_process_info,
-                dt,
-                gravity);
+                r_process_info, dt, gravity);
         }
+        // The parallel-for region has completed before phase 3 begins.
+
+        const int number_of_suspended_particles =
+            static_cast<int>(suspended_particles.size());
+
+        // Phase 3: each mixed pair is evaluated from its suspended owner.
+#pragma omp parallel for schedule(dynamic, 1)
+        for (int i = 0; i < number_of_suspended_particles; ++i)
+        {
+            suspended_particles[i]->ComputeDemDpdCouplingForces(r_process_info);
+        }
+        // All locked accumulator writes finish before phase 4 begins.
+
+        // Phase 4: one iteration owns each final nodal force update.
+        block_for_each(r_nodes, [](ModelPart::NodeType& r_node)
+        {
+            auto& r_total_force = r_node.FastGetSolutionStepValue(TOTAL_FORCES);
+            noalias(r_total_force) +=
+                r_node.FastGetSolutionStepValue(DPD_TO_DEM_COUPLING_FORCE);
+            noalias(r_total_force) +=
+                r_node.FastGetSolutionStepValue(DEM_TO_DPD_COUPLING_FORCE);
+        });
 
         KRATOS_CATCH("")
     }

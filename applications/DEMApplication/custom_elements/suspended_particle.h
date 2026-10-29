@@ -72,6 +72,9 @@ public:
         const ProcessInfo& rProcessInfo,
         const array_1d<double, 3>& rGravity) override;
 
+    // Called by the strategy only after ordinary RHS assembly has finished.
+    void ComputeDemDpdCouplingForces(const ProcessInfo& rProcessInfo);
+
     std::string Info() const override
     {
         return "SuspendedParticle";

@@ -3,6 +3,7 @@
 #include "custom_elements/dpd_particle.h"
 #include "DEM_application_variables.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace Kratos
@@ -177,6 +178,14 @@ namespace Kratos
             r_node.Set(DEMFlags::IS_SUSPENDED_PARTICLE, true);
         }
 
+        KRATOS_CATCH("")
+    }
+
+    void SuspendedParticle::ComputeDemDpdCouplingForces(
+        const ProcessInfo& rProcessInfo)
+    {
+        KRATOS_TRY
+
         const array_1d<double, 3> &r_my_position =
             GetGeometry()[0].Coordinates();
 
@@ -199,6 +208,10 @@ namespace Kratos
             {
                 continue;
             }
+
+            KRATOS_ERROR_IF(p_dpd_neighbour->Is(DEMFlags::BELONGS_TO_A_CLUSTER))
+                << "Phased DEM-DPD coupling does not support clustered DPD neighbours."
+                << std::endl;
 
             Properties &r_contact_properties =
                 GetProperties().GetSubProperties(
@@ -354,14 +367,12 @@ namespace Kratos
 
             noalias(global_dpd_force) += global_viscous_force;
 
-            // Apply the DPD-to-suspended-particle force. This is the actual
-            // force contribution to the suspended particle's integration step.
-            noalias(rAdditionalForce) += global_dpd_force;
+            // Buffer both sides. The strategy merges them into TOTAL_FORCES later.
 
             auto &r_suspended_node = this->GetGeometry()[0];
             auto &r_dpd_node = p_dpd_neighbour->GetGeometry()[0];
 
-            // Record the exact coupling force applied to the suspended particle.
+            // Accumulate the suspended-side force for the later merge phase.
             // The node can be visited in parallel, so protect the update.
             r_suspended_node.SetLock();
 
@@ -371,14 +382,10 @@ namespace Kratos
 
             r_suspended_node.UnSetLock();
 
-            // Apply and record the equal-and-opposite force to the DPD neighbour.
+            // Accumulate the equal-and-opposite force; do not touch TOTAL_FORCES here.
             // A DPD node can be shared by several suspended-particle interactions,
-            // so both updates must occur while holding this node's lock.
+            // so this accumulator update must hold the node lock.
             r_dpd_node.SetLock();
-
-            noalias(
-                r_dpd_node.FastGetSolutionStepValue(
-                    TOTAL_FORCES)) -= global_dpd_force;
 
             noalias(
                 r_dpd_node.FastGetSolutionStepValue(
