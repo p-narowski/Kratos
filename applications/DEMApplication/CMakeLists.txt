@@ -127,6 +127,7 @@ set(KRATOS_DEM_APPLICATION_CORE
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/DEM_global_damping_viscous.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/dem_dpd_sph_like_cl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/dem_dpd_drag.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/custom_constitutive/dem_dpd_drag_ghost.cpp
 )
 
 set(KRATOS_DEM_APPLICATION_PYTHON_INTERFACE

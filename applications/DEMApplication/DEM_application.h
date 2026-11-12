@@ -39,6 +39,7 @@
 #include "custom_conditions/RigidEdge.h"
 #include "custom_constitutive/dem_dpd_sph_like_cl.h"
 #include "custom_constitutive/dem_dpd_drag.h"
+#include "custom_constitutive/dem_dpd_drag_ghost.h"
 
 namespace Kratos
 {
@@ -118,7 +119,7 @@ private:
     const MAPcond    mMapCon3D3N;
     const DEM_DPD_SPH_LIKE mDEM_DPD_SPH_LIKE;
     const DEM_DPD_DRAG mDEM_DPD_DRAG;
-
+    const DEM_DPD_DRAG_GHOST mDEM_DPD_DRAG_GHOST;
     // static const ApplicationCondition  msApplicationCondition;
     KratosDEMApplication& operator=(KratosDEMApplication const& rOther);
 

@@ -69,6 +69,7 @@
 #include "custom_constitutive/DEM_global_damping_viscous.h"
 #include "custom_constitutive/dem_dpd_sph_like_cl.h"
 #include "custom_constitutive/dem_dpd_drag.h"
+#include "custom_constitutive/dem_dpd_drag_ghost.h"
 
 namespace Kratos
 {
@@ -335,6 +336,13 @@ namespace Kratos
 
             // DPD drag constitutive law:
             py::class_<DEM_DPD_DRAG, DEM_DPD_DRAG::Pointer, DEM_D_Linear_viscous_Coulomb>(m, "DEM_DPD_DRAG")
+                .def(py::init<>());
+            // DPD drag constitutive law for ghost particles:
+            py::class_<
+                DEM_DPD_DRAG_GHOST,
+                DEM_DPD_DRAG_GHOST::Pointer,
+                DEM_D_Linear_viscous_Coulomb>(
+                m, "DEM_DPD_DRAG_GHOST")
                 .def(py::init<>());
         }
 

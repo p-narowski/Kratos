@@ -28,6 +28,8 @@
 #include "custom_constitutive/DEM_D_Linear_Simple_Coulomb_CL.h"
 #include "custom_constitutive/DEM_D_Linear_viscous_Coulomb_CL.h"
 #include "custom_constitutive/dem_dpd_sph_like_cl.h"
+#include "custom_constitutive/dem_dpd_drag.h"
+#include "custom_constitutive/dem_dpd_drag_ghost.h"
 #include "custom_constitutive/DEM_D_Linear_viscous_Coulomb_2D_CL.h"
 #include "custom_constitutive/DEM_D_Hertz_viscous_Coulomb_CL.h"
 #include "custom_constitutive/DEM_D_Hertz_viscous_Coulomb_2D_CL.h"
@@ -1091,6 +1093,7 @@ namespace Kratos
         Serializer::Register("DEM_D_Linear_viscous_Coulomb", DEM_D_Linear_viscous_Coulomb());
         Serializer::Register("DEM_DPD_SPH_LIKE", DEM_DPD_SPH_LIKE());
         Serializer::Register("DEM_DPD_DRAG", DEM_DPD_DRAG());
+        Serializer::Register("DEM_DPD_DRAG_GHOST", DEM_DPD_DRAG_GHOST());
         Serializer::Register("DEM_D_Linear_viscous_Coulomb2D", DEM_D_Linear_viscous_Coulomb2D());
         Serializer::Register("DEM_D_Hertz_viscous_Coulomb", DEM_D_Hertz_viscous_Coulomb());
         Serializer::Register("DEM_D_Hertz_viscous_Coulomb2D", DEM_D_Hertz_viscous_Coulomb2D());

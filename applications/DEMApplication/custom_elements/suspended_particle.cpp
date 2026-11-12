@@ -182,7 +182,7 @@ namespace Kratos
     }
 
     void SuspendedParticle::ComputeDemDpdCouplingForces(
-        const ProcessInfo& rProcessInfo)
+        const ProcessInfo &rProcessInfo)
     {
         KRATOS_TRY
 
@@ -237,25 +237,33 @@ namespace Kratos
                 mDiscontinuumConstitutiveLaw->GetTypeOfLaw();
 
             if (
-                law_name != "DEM_DPD_SPH_LIKE" && law_name != "DEM_DPD_DRAG")
+                law_name != "DEM_DPD_SPH_LIKE" &&
+                law_name != "DEM_DPD_DRAG" &&
+                law_name != "DEM_DPD_DRAG_GHOST")
             {
                 continue;
             }
 
-            // DPD cutoff radius for this material pair
+            // Declare rc before using it in the pair cutoff.
             const double rc =
                 r_contact_properties[DPD_CUTOFF_RADIUS];
 
-            // Suspended DEM radius is the larger of the two radii.
-            // In your setup, this->GetRadius() is the DEM sphere.
-            const double dem_radius = std::max(
-                GetRadius(),
-                p_dpd_neighbour->GetRadius());
+            // This element is the suspended DEM particle.
+            const double dem_radius = GetRadius();
 
-            // Center-based cutoff consistent with DEM_DPD_DRAG:
-            //   d_s = distance - R_dem
-            //   active when d_s < rc  -> distance < R_dem + rc
-            const double pair_cutoff = dem_radius + rc;
+            // DEM_DPD_SPH_LIKE uses center-to-center distance.
+            double pair_cutoff = rc;
+
+            if (law_name == "DEM_DPD_DRAG")
+            {
+                // Surface-distance law: d_surface < rc.
+                pair_cutoff = dem_radius + rc;
+            }
+            else if (law_name == "DEM_DPD_DRAG_GHOST")
+            {
+                // Mirror separation: r_ghost = 2*d_surface < rc.
+                pair_cutoff = dem_radius + 0.5 * rc;
+            }
 
             array_1d<double, 3> r_ij;
             r_ij.clear();
