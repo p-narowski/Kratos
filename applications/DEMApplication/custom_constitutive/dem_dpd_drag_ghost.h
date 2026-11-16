@@ -8,7 +8,9 @@
 // DEM/suspended particle must have the larger interaction radius. In a DPD--DEM
 // pair, this law uses:
 //
-//     d_s = r_center - max(R_1, R_2)
+//     d_s = r_center - R_suspended
+//     r_ghost = 2 * max(0, d_s)
+//  exterior active range: d_s < DPD_CUTOFF_RADIUS / 2
 //
 // so it is independent of the ordering of the two particles in the pair loop.
 //
